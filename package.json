@@ -17,7 +17,7 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
-    "./styles.css": "./dist/viz-kit.css"
+    "./styles.css": "./dist/style.css"
   },
   "scripts": {
     "dev": "vite",

@@ -26,7 +26,6 @@ export default defineConfig(({ command }) => ({
       formats: ["es", "cjs"],
       fileName: (format) => (format === "es" ? "index.js" : "index.cjs"),
     },
-    cssFileName: "viz-kit",
     sourcemap: true,
     rollupOptions: {
       external: ["react", "react-dom", "react/jsx-runtime"],

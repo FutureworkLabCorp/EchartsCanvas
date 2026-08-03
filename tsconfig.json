@@ -24,11 +24,16 @@
     "noEmit": true,
 
     "types": ["node", "vite/client", "vitest/globals"],
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "demo", ".storybook", "vite.config.ts"],
+  "include": [
+    "src",
+    "demo",
+    ".storybook",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ],
   "exclude": ["dist", "node_modules", "storybook-static"]
 }
