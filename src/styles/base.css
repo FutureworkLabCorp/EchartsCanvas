@@ -1,0 +1,108 @@
+/* viz-kit 공통 스타일. 테마 토큰(CSS 변수)은 ThemeProvider 가 주입한다. */
+
+.viz-chart-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+
+.viz-chart-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.viz-canvas2d-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.viz-canvas2d-root > canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.viz-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--viz-surface, #121a24);
+  border: 1px solid var(--viz-border, #243040);
+  border-radius: var(--viz-radius, 8px);
+  color: var(--viz-text-primary, #e6edf5);
+  font-family: var(--viz-font, sans-serif);
+  overflow: hidden;
+}
+
+.viz-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--viz-border, #243040);
+  background: var(--viz-surface-alt, #18222e);
+}
+
+.viz-panel__title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.viz-panel__subtitle {
+  font-size: 11px;
+  color: var(--viz-text-muted, #63758a);
+}
+
+.viz-panel__body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.viz-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--viz-text-muted, #63758a);
+  font-size: 12px;
+}
+
+.viz-tooltip {
+  position: absolute;
+  z-index: 10;
+  pointer-events: none;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--viz-surface, #121a24);
+  border: 1px solid var(--viz-border, #243040);
+  color: var(--viz-text-primary, #e6edf5);
+  font-family: var(--viz-font, sans-serif);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 35%);
+}
+
+.viz-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.viz-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
