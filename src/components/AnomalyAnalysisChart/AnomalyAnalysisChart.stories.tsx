@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import { AnomalyAnalysisChart } from "./AnomalyAnalysisChart";
 import type { AnomalyChartMode } from "./AnomalyAnalysisChart";
 import { Panel } from "../Panel/Panel";

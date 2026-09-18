@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import { BaseChart } from "../core/BaseChart/BaseChart";
 import { Canvas2DBase } from "../core/Canvas2DBase/Canvas2DBase";
 import type { Canvas2DDrawArgs, Point } from "../core/Canvas2DBase/types";

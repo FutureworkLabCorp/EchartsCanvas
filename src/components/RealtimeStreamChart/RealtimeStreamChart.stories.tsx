@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import { RealtimeStreamChart } from "./RealtimeStreamChart";
 import { OeeGauge } from "./OeeGauge";
 import { LiquidFillWidget } from "./LiquidFillWidget";

@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Decorator, Preview } from '@storybook/react';
+import type { Decorator, Preview } from '@storybook/react-vite';
 import { ThemeProvider } from '../src/theme/ThemeProvider';
 import { industrialDark, industrialLight } from '../src/theme/presets';
 import '../src/styles/base.css';
@@ -33,7 +33,7 @@ const preview: Preview = {
   },
   globalTypes: {
     theme: {
-      description: '시각화 테마',
+      description: 'Visualization theme',
       defaultValue: 'dark',
       toolbar: {
         title: 'Theme',

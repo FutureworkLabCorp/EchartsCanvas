@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import { FactoryLayoutCanvas } from "../components/FactoryLayoutCanvas/FactoryLayoutCanvas";
 import { RealtimeStreamChart } from "../components/RealtimeStreamChart/RealtimeStreamChart";
 import { OeeGauge } from "../components/RealtimeStreamChart/OeeGauge";

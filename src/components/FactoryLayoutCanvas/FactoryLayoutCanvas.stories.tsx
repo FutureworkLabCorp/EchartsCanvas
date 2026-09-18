@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import { FactoryLayoutCanvas } from "./FactoryLayoutCanvas";
 import { Panel, StatusBadge } from "../Panel/Panel";
 import {

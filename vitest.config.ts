@@ -1,11 +1,11 @@
 import { resolve } from "node:path";
 import { defineConfig } from "vitest/config";
 
-// vite.config.ts 는 dev(데모 앱) / build(라이브러리)에 따라 root 가 달라지므로
-// 테스트 설정은 별도 파일로 분리해 항상 저장소 루트를 기준으로 실행한다.
+// Kept separate from vite.config.ts because that one switches `root` between the demo
+// app and the library, so tests would resolve against whichever mode happened to load.
 export default defineConfig({
   resolve: {
-    alias: { "@": resolve(__dirname, "src") },
+    alias: { "@": resolve(import.meta.dirname, "src") },
   },
   test: {
     globals: true,
