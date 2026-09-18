@@ -19,3 +19,9 @@ export {
   koThresholdLabels,
   koHourLabel,
 } from "./labels";
+export {
+  createMockKnowledgeGraph,
+  koGraphTypeStyles,
+  GRAPH_NODE_TYPES,
+} from "./graph";
+export type { MockGraphOptions, MockNodeType } from "./graph";

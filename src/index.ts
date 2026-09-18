@@ -132,6 +132,17 @@ export type {
 export { FactoryLayoutCanvas } from "./components/FactoryLayoutCanvas";
 export type { FactoryLayoutCanvasProps } from "./components/FactoryLayoutCanvas";
 
+export { RelationGraphCanvas } from "./components/RelationGraphCanvas";
+export type { RelationGraphCanvasProps } from "./components/RelationGraphCanvas";
+export {
+  ForceSimulation,
+  forceCenter,
+  forceCollide,
+  forceLink,
+  forceManyBody,
+} from "./core/force";
+export type { Force, SimLink, SimNode, SimulationOptions } from "./core/force";
+
 export { Panel, StatusBadge } from "./components/Panel";
 export type { PanelProps, StatusBadgeProps } from "./components/Panel";
 
@@ -151,6 +162,11 @@ export type {
   LayoutZone,
   ConveyorPath,
   FactoryLayout,
+  GraphNode,
+  GraphEdge,
+  GraphData,
+  GraphTypeStyle,
+  GraphTypeIcon,
 } from "./types/domain";
 
 export {
@@ -160,6 +176,14 @@ export {
   createMockFactoryLayout,
   simulateStatusChanges,
   createRandom,
+  createMockKnowledgeGraph,
+  koGraphTypeStyles,
+  koStatusLabels,
+  koEquipmentStatusLabels,
+  koAnomalyChartLabels,
+  koToolboxLabels,
+  koThresholdLabels,
+  koHourLabel,
 } from "./mock";
 export type {
   MockSensorConfig,
@@ -167,4 +191,6 @@ export type {
   MockSensorStream,
   MockAnomalyOptions,
   MockAnomalyDataset,
+  MockGraphOptions,
+  MockNodeType,
 } from "./mock";

@@ -113,3 +113,36 @@ export interface FactoryLayout {
   conveyors?: ConveyorPath[];
   equipments: EquipmentNode[];
 }
+
+export interface GraphNode {
+  id: string;
+  label: string;
+  // Keys into the caller's typeStyles map; the library attaches no meaning to the value.
+  type: string;
+}
+
+export interface GraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  // 0..1. Drives stroke width when present; an edge without one draws at the base width.
+  weight?: number;
+}
+
+export interface GraphData {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+// The glyph shapes the node cards can draw. Naming them by shape rather than by domain
+// keeps the library from knowing what a node type means.
+export type GraphTypeIcon =
+  "alert" | "gear" | "flow" | "layers" | "person" | "doc";
+
+// Colour, wording and glyph all come from the caller: the palette is the host's design
+// system, the wording is its copy, and only it knows which shape suits which type.
+export interface GraphTypeStyle {
+  label: string;
+  color: string;
+  icon?: GraphTypeIcon;
+}
