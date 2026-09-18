@@ -15,6 +15,14 @@ import type { MockSensorStream } from "../mock/sensorStream";
 import { createMockAnomalyDataset } from "../mock/anomalyData";
 import { useVizStore } from "../store/vizStore";
 import type { EquipmentStatus, SeriesDescriptor } from "../types/domain";
+import {
+  koAnomalyChartLabels,
+  koEquipmentStatusLabels,
+  koHourLabel,
+  koStatusLabels,
+  koThresholdLabels,
+  koToolboxLabels,
+} from "../mock/labels";
 
 const meta = {
   title: "03. 통합 대시보드/이벤트 연동 데모",
@@ -98,11 +106,17 @@ export const 설비_선택_연동_대시보드: Story = {
             subtitle="설비를 클릭하면 우측 차트가 전환됩니다"
             height="100%"
             extra={
-              selected ? <StatusBadge status={selected.status} /> : undefined
+              selected ? (
+                <StatusBadge
+                  status={selected.status}
+                  label={koStatusLabels[selected.status]}
+                />
+              ) : undefined
             }
           >
             <FactoryLayoutCanvas
               layout={layout}
+              statusLabels={koEquipmentStatusLabels}
               statusOverrides={statuses}
               selectedId={selected?.id ?? null}
               onSelect={(equipment) => selectEquipment(equipment, "dashboard")}
@@ -118,6 +132,7 @@ export const 설비_선택_연동_대시보드: Story = {
           >
             <Panel title="OEE" height={200}>
               <OeeGauge
+                title="OEE"
                 metrics={{
                   availability: 0.93,
                   performance: 0.88,
@@ -165,6 +180,7 @@ export const 설비_선택_연동_대시보드: Story = {
           <Panel title={`실시간 센서 — ${title}`} height="100%">
             {stream && (
               <RealtimeStreamChart
+                thresholdLabels={koThresholdLabels}
                 series={SERIES}
                 source={stream}
                 thresholds={{ warning: 80, critical: 92 }}
@@ -173,6 +189,9 @@ export const 설비_선택_연동_대시보드: Story = {
           </Panel>
           <Panel title={`AI 이상 탐지 — ${title}`} height="100%">
             <AnomalyAnalysisChart
+              labels={koAnomalyChartLabels}
+              toolboxLabels={koToolboxLabels}
+              hourLabel={koHourLabel}
               data={anomalyDataset.data}
               predictionBand={anomalyDataset.predictionBand}
               anomalies={anomalyDataset.anomalies}

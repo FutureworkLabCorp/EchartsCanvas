@@ -12,19 +12,23 @@ export interface OeeGaugeProps {
   // 0..1
   warningBelow?: number;
   criticalBelow?: number;
-  title?: string;
+  // Required: the gauge's own label, which the library cannot supply.
+  title: string;
+  // Unset renders no aria-label rather than a fabricated one.
+  ariaLabel?: string;
   className?: string;
   style?: CSSProperties;
 }
 
-export function OeeGauge({
+export const OeeGauge = ({
   metrics,
   warningBelow = 0.75,
   criticalBelow = 0.6,
-  title = "OEE",
+  title,
+  ariaLabel,
   className,
   style,
-}: OeeGaugeProps) {
+}: OeeGaugeProps) => {
   const theme = useVizTheme();
 
   const option = useMemo<VizEChartsOption>(() => {
@@ -87,7 +91,7 @@ export function OeeGauge({
       notMerge
       className={className}
       style={style}
-      ariaLabel={`${title} 게이지`}
+      ariaLabel={ariaLabel}
     />
   );
-}
+};

@@ -15,7 +15,7 @@ export interface PanelProps {
 
 // The header and body heights are fixed so a chart inside never sees its container
 // resize as its own content changes, which would feed back into another resize.
-export function Panel({
+export const Panel = ({
   title,
   subtitle,
   extra,
@@ -24,7 +24,7 @@ export function Panel({
   className,
   style,
   bodyStyle,
-}: PanelProps) {
+}: PanelProps) => {
   return (
     <div
       className={["viz-panel", className].filter(Boolean).join(" ")}
@@ -44,29 +44,22 @@ export function Panel({
       </div>
     </div>
   );
-}
+};
 
 export interface StatusBadgeProps {
   status: StatusKey;
-  label?: string;
+  // Required: a badge with only a coloured dot says nothing, and the library holds no
+  // copy of its own to fall back to.
+  label: string;
 }
 
-const STATUS_LABEL: Record<StatusKey, string> = {
-  normal: "정상",
-  warning: "주의",
-  critical: "경고",
-  idle: "대기",
-  offline: "오프라인",
-  maintenance: "점검중",
-};
-
-export function StatusBadge({ status, label }: StatusBadgeProps) {
+export const StatusBadge = ({ status, label }: StatusBadgeProps) => {
   const theme = useVizTheme();
   const color = theme.palette.status[status];
   return (
     <span className="viz-badge" style={{ color, background: `${color}1f` }}>
       <span className="viz-badge__dot" />
-      {label ?? STATUS_LABEL[status]}
+      {label}
     </span>
   );
-}
+};

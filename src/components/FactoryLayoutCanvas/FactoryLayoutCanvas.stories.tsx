@@ -7,6 +7,7 @@ import {
   simulateStatusChanges,
 } from "../../mock/factoryLayout";
 import type { EquipmentNode, EquipmentStatus } from "../../types/domain";
+import { koEquipmentStatusLabels, koStatusLabels } from "../../mock/labels";
 
 const meta = {
   title: "02. 예시 컴포넌트/FactoryLayoutCanvas",
@@ -27,7 +28,7 @@ type Story = StoryObj<typeof meta>;
 const layout = createMockFactoryLayout();
 
 export const 기본: Story = {
-  args: { layout },
+  args: { layout, statusLabels: koEquipmentStatusLabels },
   render: (args) => (
     <Panel
       title="A동 1층 레이아웃"
@@ -41,7 +42,7 @@ export const 기본: Story = {
 
 // Status changes live; only the abnormal machines pulse.
 export const 실시간_상태_변화: Story = {
-  args: { layout },
+  args: { layout, statusLabels: koEquipmentStatusLabels },
   render: (args) => {
     const ids = useMemo(() => layout.equipments.map((item) => item.id), []);
     const [statuses, setStatuses] = useState<Record<string, EquipmentStatus>>(
@@ -64,7 +65,7 @@ export const 실시간_상태_변화: Story = {
 
 // Exercises hit detection: selecting a machine drives a detail panel.
 export const 설비_선택_연동: Story = {
-  args: { layout },
+  args: { layout, statusLabels: koEquipmentStatusLabels },
   render: (args) => {
     const [selected, setSelected] = useState<EquipmentNode | null>(null);
 
@@ -84,7 +85,10 @@ export const 설비_선택_연동: Story = {
                 <div style={{ fontSize: 15, fontWeight: 600 }}>
                   {selected.name}
                 </div>
-                <StatusBadge status={selected.status} />
+                <StatusBadge
+                  status={selected.status}
+                  label={koStatusLabels[selected.status]}
+                />
                 <div style={{ opacity: 0.7 }}>ID: {selected.id}</div>
                 {Object.entries(selected.metrics ?? {}).map(([key, value]) => (
                   <div
@@ -108,7 +112,7 @@ export const 설비_선택_연동: Story = {
 
 // Static plan with the rAF loop off, drawing only on demand.
 export const 정적_도면_ondemand: Story = {
-  args: { layout, animate: false },
+  args: { layout, animate: false, statusLabels: koEquipmentStatusLabels },
   render: (args) => (
     <Panel
       title="정적 도면 (on-demand 렌더)"

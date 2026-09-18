@@ -34,6 +34,15 @@ export interface RealtimeStreamChartProps {
   yAxis?: { min?: number; max?: number; name?: string };
   initialData?: SensorSample[];
   showLegend?: boolean;
+  // Annotates the threshold lines. Each formatter takes the threshold value, because
+  // word order around a number is not the same in every language. Unset draws the line
+  // without a label.
+  thresholdLabels?: {
+    warning?: (value: number) => string;
+    critical?: (value: number) => string;
+  };
+  // Unset renders no aria-label rather than a fabricated one.
+  ariaLabel?: string;
   className?: string;
   style?: CSSProperties;
 }
@@ -42,7 +51,7 @@ export interface RealtimeStreamChartProps {
 // arrivals a second cause no re-render. A throttled DataStreamBuffer then drives one
 // setOption per flush, and `sampling: 'lttb'` keeps the draw cost flat once the point
 // count passes the pixel width.
-export function RealtimeStreamChart({
+export const RealtimeStreamChart = ({
   series,
   source,
   windowSize = 600,
@@ -53,9 +62,11 @@ export function RealtimeStreamChart({
   yAxis,
   initialData,
   showLegend = true,
+  thresholdLabels,
+  ariaLabel,
   className,
   style,
-}: RealtimeStreamChartProps) {
+}: RealtimeStreamChartProps) => {
   const theme = useVizTheme();
   const chartRef = useRef<BaseChartHandle>(null);
   const buffersRef = useRef(new Map<string, RingBuffer<TimeValuePoint>>());
@@ -229,7 +240,11 @@ export function RealtimeStreamChart({
                             type: "dashed" as const,
                           },
                           label: {
-                            formatter: `주의 ${warning}`,
+                            ...(thresholdLabels?.warning === undefined
+                              ? { show: false }
+                              : {
+                                  formatter: thresholdLabels.warning(warning),
+                                }),
                             color: palette.status.warning,
                           },
                         },
@@ -244,7 +259,11 @@ export function RealtimeStreamChart({
                             type: "dashed" as const,
                           },
                           label: {
-                            formatter: `경고 ${critical}`,
+                            ...(thresholdLabels?.critical === undefined
+                              ? { show: false }
+                              : {
+                                  formatter: thresholdLabels.critical(critical),
+                                }),
                             color: palette.status.critical,
                           },
                         },
@@ -255,7 +274,7 @@ export function RealtimeStreamChart({
             : undefined,
       })),
     };
-  }, [series, theme, thresholds, yAxis, showLegend]);
+  }, [series, theme, thresholds, yAxis, showLegend, thresholdLabels]);
 
   return (
     <BaseChart
@@ -265,7 +284,7 @@ export function RealtimeStreamChart({
       notMerge
       className={className}
       style={style}
-      ariaLabel="실시간 센서 스트리밍 차트"
+      ariaLabel={ariaLabel}
       onReady={() => {
         applyToChart();
         // Exposed so a replay or a test can feed samples without a source.
@@ -273,7 +292,7 @@ export function RealtimeStreamChart({
       }}
     />
   );
-}
+};
 
 // Fires on a level change only. Emitting per breaching sample floods listeners at the
 // exact moment something is wrong.

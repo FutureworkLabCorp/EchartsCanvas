@@ -9,6 +9,7 @@ import type { MockSensorStream } from "../../mock/sensorStream";
 import { useVizEvent } from "../../store/vizStore";
 import { VizEvent } from "../../core/EventBus/events";
 import type { SeriesDescriptor } from "../../types/domain";
+import { koThresholdLabels } from "../../mock/labels";
 
 const meta = {
   title: "02. 예시 컴포넌트/RealtimeStreamChart",
@@ -66,7 +67,7 @@ function useMockStream(hz: number, burst = 1): MockSensorStream | null {
 
 // 20Hz stream with thresholds drawn.
 export const 기본: Story = {
-  args: { series: SERIES },
+  args: { series: SERIES, thresholdLabels: koThresholdLabels },
   render: (args) => {
     const stream = useMockStream(20);
     return (
@@ -90,7 +91,7 @@ export const 기본: Story = {
 
 // Checks the frame rate holds at 1,000 arrivals a second.
 export const 고주파_1000Hz: Story = {
-  args: { series: SERIES },
+  args: { series: SERIES, thresholdLabels: koThresholdLabels },
   render: (args) => {
     const stream = useMockStream(1000, 25);
     return (
@@ -115,7 +116,10 @@ export const 고주파_1000Hz: Story = {
 
 // Receiving ON_THRESHOLD_BREACH on a threshold crossing.
 export const 임계치_경고_이벤트: Story = {
-  args: { series: [SERIES[0] as SeriesDescriptor] },
+  args: {
+    series: [SERIES[0] as SeriesDescriptor],
+    thresholdLabels: koThresholdLabels,
+  },
   render: (args) => {
     const stream = useMockStream(20);
     const [logs, setLogs] = useState<string[]>([]);
@@ -175,7 +179,7 @@ export const 임계치_경고_이벤트: Story = {
 
 // The OEE gauge and the LiquidFill widget alongside the chart.
 export const OEE_위젯_연동: Story = {
-  args: { series: SERIES },
+  args: { series: SERIES, thresholdLabels: koThresholdLabels },
   render: (args) => {
     const stream = useMockStream(20);
     const [tick, setTick] = useState(0);
@@ -208,7 +212,7 @@ export const OEE_위젯_연동: Story = {
           )}
         </Panel>
         <Panel title="OEE" height={320}>
-          <OeeGauge metrics={metrics} />
+          <OeeGauge metrics={metrics} title="OEE" />
         </Panel>
         <Panel title="탱크 수위" height={320}>
           <LiquidFillWidget

@@ -5,6 +5,11 @@ import type { AnomalyChartMode } from "./AnomalyAnalysisChart";
 import { Panel } from "../Panel/Panel";
 import { createMockAnomalyDataset } from "../../mock/anomalyData";
 import { formatTime } from "../../core/utils/format";
+import {
+  koAnomalyChartLabels,
+  koHourLabel,
+  koToolboxLabels,
+} from "../../mock/labels";
 
 const meta = {
   title: "02. 예시 컴포넌트/AnomalyAnalysisChart",
@@ -26,6 +31,9 @@ const dataset = createMockAnomalyDataset({ count: 5000, anomalyCount: 5 });
 
 export const 기본: Story = {
   args: {
+    labels: koAnomalyChartLabels,
+    toolboxLabels: koToolboxLabels,
+    hourLabel: koHourLabel,
     data: dataset.data,
     predictionBand: dataset.predictionBand,
     anomalies: dataset.anomalies,
@@ -45,7 +53,13 @@ export const 기본: Story = {
 
 // 120k points, navigated with DataZoom.
 export const 대용량_이력_탐색: Story = {
-  args: { data: [], unit: "℃" },
+  args: {
+    labels: koAnomalyChartLabels,
+    toolboxLabels: koToolboxLabels,
+    hourLabel: koHourLabel,
+    data: [],
+    unit: "℃",
+  },
   render: (args) => {
     const large = useMemo(
       () =>
@@ -78,7 +92,13 @@ export const 대용량_이력_탐색: Story = {
 
 // Switching the same data between the timeline and the heatmap view.
 export const 히트맵_전환: Story = {
-  args: { data: dataset.data, unit: "℃" },
+  args: {
+    labels: koAnomalyChartLabels,
+    toolboxLabels: koToolboxLabels,
+    hourLabel: koHourLabel,
+    data: dataset.data,
+    unit: "℃",
+  },
   render: (args) => {
     const [mode, setMode] = useState<AnomalyChartMode>("timeline");
     return (
@@ -111,6 +131,9 @@ export const 히트맵_전환: Story = {
 // Clicking an anomaly drives a detail panel.
 export const 이상지점_클릭: Story = {
   args: {
+    labels: koAnomalyChartLabels,
+    toolboxLabels: koToolboxLabels,
+    hourLabel: koHourLabel,
     data: dataset.data,
     predictionBand: dataset.predictionBand,
     anomalies: dataset.anomalies,

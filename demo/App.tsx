@@ -23,6 +23,14 @@ import type {
   MockSensorStream,
   SeriesDescriptor,
 } from "../src";
+import {
+  koAnomalyChartLabels,
+  koEquipmentStatusLabels,
+  koHourLabel,
+  koStatusLabels,
+  koThresholdLabels,
+  koToolboxLabels,
+} from "../src/mock/labels";
 
 const layout = createMockFactoryLayout();
 const anomalyDataset = createMockAnomalyDataset({
@@ -166,11 +174,17 @@ function Dashboard({
             subtitle="휠 확대 · 드래그 이동 · 클릭 선택"
             height="100%"
             extra={
-              selected ? <StatusBadge status={selected.status} /> : undefined
+              selected ? (
+                <StatusBadge
+                  status={selected.status}
+                  label={koStatusLabels[selected.status]}
+                />
+              ) : undefined
             }
           >
             <FactoryLayoutCanvas
               layout={layout}
+              statusLabels={koEquipmentStatusLabels}
               statusOverrides={statuses}
               selectedId={selected?.id ?? null}
               onSelect={(equipment) => selectEquipment(equipment, "demo")}
@@ -186,6 +200,7 @@ function Dashboard({
           >
             <Panel title="OEE" height={190}>
               <OeeGauge
+                title="OEE"
                 metrics={{
                   availability: 0.94,
                   performance: 0.87,
@@ -230,6 +245,7 @@ function Dashboard({
           >
             {stream && (
               <RealtimeStreamChart
+                thresholdLabels={koThresholdLabels}
                 series={SERIES}
                 source={stream}
                 windowSize={800}
@@ -243,6 +259,9 @@ function Dashboard({
             height="100%"
           >
             <AnomalyAnalysisChart
+              labels={koAnomalyChartLabels}
+              toolboxLabels={koToolboxLabels}
+              hourLabel={koHourLabel}
               data={anomalyDataset.data}
               predictionBand={anomalyDataset.predictionBand}
               anomalies={anomalyDataset.anomalies}

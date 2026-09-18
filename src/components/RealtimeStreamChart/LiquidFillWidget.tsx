@@ -15,6 +15,8 @@ export interface LiquidFillWidgetProps {
   // Per-frame interpolation factor in 0..1, not a duration.
   easing?: number;
   paused?: boolean;
+  // Unset renders no aria-label rather than a fabricated one.
+  ariaLabel?: string;
   className?: string;
   style?: CSSProperties;
 }
@@ -22,7 +24,7 @@ export interface LiquidFillWidgetProps {
 // Built on Canvas2DBase rather than echarts-liquidfill: that plugin pulls the full
 // ECharts bundle and breaks the modular registration in core/echarts. The wave is one
 // shape, so the shared canvas loop covers it.
-export function LiquidFillWidget({
+export const LiquidFillWidget = ({
   value,
   label,
   color,
@@ -30,9 +32,10 @@ export function LiquidFillWidget({
   criticalBelow = 0.6,
   easing = 0.08,
   paused = false,
+  ariaLabel,
   className,
   style,
-}: LiquidFillWidgetProps) {
+}: LiquidFillWidgetProps) => {
   const displayRef = useRef(clamp(value, 0, 1));
   const targetRef = useRef(clamp(value, 0, 1));
   targetRef.current = clamp(value, 0, 1);
@@ -123,7 +126,7 @@ export function LiquidFillWidget({
       backgroundColor="transparent"
       className={className}
       style={style}
-      ariaLabel={`${label ?? "수위"} 위젯`}
+      ariaLabel={ariaLabel}
     />
   );
-}
+};

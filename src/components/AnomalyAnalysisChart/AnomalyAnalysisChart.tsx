@@ -29,7 +29,28 @@ export interface AnomalyAnalysisChartProps {
   mode?: AnomalyChartMode;
   // Unset aggregates `data` into a day-by-hour grid.
   heatmap?: { cells: HeatmapCell[]; xLabels: string[]; yLabels: string[] };
-  seriesName?: string;
+  // Required: these name the three series, and a series with no name renders blank in
+  // both the legend and the tooltip.
+  labels: {
+    actual: string;
+    predictionBand: string;
+    predicted: string;
+    // Used for an anomaly carrying no label of its own. Required because ECharts types
+    // a markPoint's name as a required string, so there is no unnamed marker to fall
+    // back to.
+    anomaly: string;
+  };
+  // Unset leaves the ECharts defaults on the toolbox buttons.
+  toolboxLabels?: {
+    zoom?: string;
+    back?: string;
+    restore?: string;
+    saveAsImage?: string;
+  };
+  // Formats the heatmap hour axis. Unset renders the bare hour number.
+  hourLabel?: (hour: number) => string;
+  // Unset renders no aria-label rather than a fabricated one.
+  ariaLabel?: string;
   unit?: string;
   // 0 renders every point.
   downsampleTo?: number;
@@ -45,14 +66,17 @@ export interface AnomalyAnalysisChartProps {
 // thickness stacked on top, because ECharts has no band series. LTTB plus DataZoom is
 // what makes hundreds of thousands of points navigable, and the heatmap view re-buckets
 // the same data by day and hour to show a pattern the line hides.
-export function AnomalyAnalysisChart({
+export const AnomalyAnalysisChart = ({
   data,
   predictionBand,
   anomalies = [],
   markRanges = [],
   mode = "timeline",
   heatmap,
-  seriesName = "실측값",
+  labels,
+  toolboxLabels,
+  hourLabel,
+  ariaLabel,
   unit = "",
   downsampleTo = 2000,
   initialZoom,
@@ -60,7 +84,7 @@ export function AnomalyAnalysisChart({
   onRangeChange,
   className,
   style,
-}: AnomalyAnalysisChartProps) {
+}: AnomalyAnalysisChartProps) => {
   const theme = useVizTheme();
   const chartRef = useRef<BaseChartHandle>(null);
 
@@ -75,8 +99,10 @@ export function AnomalyAnalysisChart({
   }, [data, downsampleTo]);
 
   const derivedHeatmap = useMemo(
-    () => heatmap ?? (mode === "heatmap" ? aggregateToHeatmap(data) : null),
-    [heatmap, mode, data],
+    () =>
+      heatmap ??
+      (mode === "heatmap" ? aggregateToHeatmap(data, hourLabel) : null),
+    [heatmap, mode, data, hourLabel],
   );
 
   const timelineOption = useMemo<VizEChartsOption>(() => {
@@ -98,7 +124,7 @@ export function AnomalyAnalysisChart({
       legend: {
         top: 0,
         right: 8,
-        data: [seriesName, "예측 정상범위", "AI 예측값"],
+        data: [labels.actual, labels.predictionBand, labels.predicted],
         textStyle: { fontSize: font.sizeXs },
       },
       tooltip: {
@@ -115,10 +141,30 @@ export function AnomalyAnalysisChart({
         feature: {
           dataZoom: {
             yAxisIndex: "none",
-            title: { zoom: "영역 확대", back: "되돌리기" },
+            ...(toolboxLabels?.zoom === undefined &&
+            toolboxLabels?.back === undefined
+              ? {}
+              : {
+                  title: {
+                    ...(toolboxLabels.zoom === undefined
+                      ? {}
+                      : { zoom: toolboxLabels.zoom }),
+                    ...(toolboxLabels.back === undefined
+                      ? {}
+                      : { back: toolboxLabels.back }),
+                  },
+                }),
           },
-          restore: { title: "초기화" },
-          saveAsImage: { title: "이미지 저장", pixelRatio: 2 },
+          restore:
+            toolboxLabels?.restore === undefined
+              ? {}
+              : { title: toolboxLabels.restore },
+          saveAsImage: {
+            pixelRatio: 2,
+            ...(toolboxLabels?.saveAsImage === undefined
+              ? {}
+              : { title: toolboxLabels.saveAsImage }),
+          },
         },
       },
       xAxis: {
@@ -151,7 +197,7 @@ export function AnomalyAnalysisChart({
         // Invisible; it exists to be the stack baseline.
         {
           id: "band-lower",
-          name: "예측 정상범위",
+          name: labels.predictionBand,
           type: "line",
           stack: "prediction-band",
           symbol: "none",
@@ -173,7 +219,7 @@ export function AnomalyAnalysisChart({
         },
         {
           id: "predicted",
-          name: "AI 예측값",
+          name: labels.predicted,
           type: "line",
           symbol: "none",
           smooth: true,
@@ -182,7 +228,7 @@ export function AnomalyAnalysisChart({
         },
         {
           id: "actual",
-          name: seriesName,
+          name: labels.actual,
           type: "line",
           symbol: "none",
           sampling: "lttb",
@@ -218,7 +264,7 @@ export function AnomalyAnalysisChart({
                   formatter: "!",
                 },
                 data: anomalies.map((anomaly) => ({
-                  name: anomaly.label ?? "이상 감지",
+                  name: anomaly.label ?? labels.anomaly,
                   coord: [anomaly.time, anomaly.value],
                   value: anomaly.score.toFixed(2),
                   itemStyle: {
@@ -239,7 +285,7 @@ export function AnomalyAnalysisChart({
     sampled,
     anomalies,
     markRanges,
-    seriesName,
+    labels,
     unit,
     initialZoom,
   ]);
@@ -351,10 +397,10 @@ export function AnomalyAnalysisChart({
       events={events}
       className={className}
       style={style}
-      ariaLabel="AI 이상 탐지 시계열 차트"
+      ariaLabel={ariaLabel}
     />
   );
-}
+};
 
 function rangeColor(
   range: TimeRange,
@@ -400,11 +446,10 @@ function readZoomRange(
   return { start, end };
 }
 
-export function aggregateToHeatmap(data: readonly TimeValuePoint[]): {
-  cells: HeatmapCell[];
-  xLabels: string[];
-  yLabels: string[];
-} {
+export const aggregateToHeatmap = (
+  data: readonly TimeValuePoint[],
+  hourLabel: (hour: number) => string = String,
+): { cells: HeatmapCell[]; xLabels: string[]; yLabels: string[] } => {
   const buckets = new Map<string, { sum: number; count: number }>();
   const days: string[] = [];
 
@@ -419,7 +464,7 @@ export function aggregateToHeatmap(data: readonly TimeValuePoint[]): {
     buckets.set(key, bucket);
   }
 
-  const xLabels = Array.from({ length: 24 }, (_, hour) => `${hour}시`);
+  const xLabels = Array.from({ length: 24 }, (_, hour) => hourLabel(hour));
   const cells: HeatmapCell[] = [];
   for (const [key, bucket] of buckets) {
     const [dayKey, hourText] = key.split("|");
@@ -432,7 +477,7 @@ export function aggregateToHeatmap(data: readonly TimeValuePoint[]): {
   }
 
   return { cells, xLabels, yLabels: days };
-}
+};
 
 export const formatAnomalyTime = (time: number): string =>
   formatTime(time, true);

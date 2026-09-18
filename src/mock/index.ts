@@ -11,3 +11,11 @@ export {
   simulateStatusChanges,
 } from "./factoryLayout";
 export { createRandom, gaussian } from "./random";
+export {
+  koStatusLabels,
+  koEquipmentStatusLabels,
+  koAnomalyChartLabels,
+  koToolboxLabels,
+  koThresholdLabels,
+  koHourLabel,
+} from "./labels";

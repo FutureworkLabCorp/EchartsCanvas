@@ -36,6 +36,11 @@ export interface FactoryLayoutCanvasProps {
   onSelect?: (equipment: EquipmentNode | null) => void;
   onHover?: (equipment: EquipmentNode | null) => void;
   emitEvents?: boolean;
+  // Required when showTooltip is on, which is the default: the tooltip names the status
+  // in words, and the library carries no wording of its own.
+  statusLabels: Record<EquipmentStatus, string>;
+  // Unset renders no aria-label rather than a fabricated one.
+  ariaLabel?: string;
   className?: string;
   style?: CSSProperties;
 }
@@ -43,7 +48,7 @@ export interface FactoryLayoutCanvasProps {
 // Draws the plan, zones, conveyors and equipment onto one canvas rather than a DOM or
 // SVG node per item, which is what keeps several hundred machines affordable. Clicks and
 // hovers resolve by coordinate hit testing, since there are no elements to receive them.
-export function FactoryLayoutCanvas({
+export const FactoryLayoutCanvas = ({
   layout,
   statusOverrides,
   selectedId = null,
@@ -56,9 +61,11 @@ export function FactoryLayoutCanvas({
   onSelect,
   onHover,
   emitEvents = true,
+  statusLabels,
+  ariaLabel,
   className,
   style,
-}: FactoryLayoutCanvasProps) {
+}: FactoryLayoutCanvasProps) => {
   const theme = useVizTheme();
   const canvasRef = useRef<Canvas2DHandle>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -241,7 +248,7 @@ export function FactoryLayoutCanvas({
           maxScale: 6,
         }}
         backgroundColor={theme.palette.background}
-        ariaLabel="공장 레이아웃 맵"
+        ariaLabel={ariaLabel}
       />
 
       {showTooltip && tooltip && (
@@ -251,7 +258,7 @@ export function FactoryLayoutCanvas({
         >
           <strong>{tooltip.node.name}</strong>
           <div style={{ color: theme.palette.status[tooltip.node.status] }}>
-            {STATUS_TEXT[tooltip.node.status]}
+            {statusLabels[tooltip.node.status]}
           </div>
           {tooltip.node.metrics &&
             Object.entries(tooltip.node.metrics).map(([key, value]) => (
@@ -266,13 +273,4 @@ export function FactoryLayoutCanvas({
       )}
     </div>
   );
-}
-
-const STATUS_TEXT: Record<EquipmentStatus, string> = {
-  normal: "정상 가동",
-  warning: "주의 — 지표 이탈",
-  critical: "경고 — 즉시 확인",
-  idle: "대기",
-  offline: "오프라인",
-  maintenance: "정비 중",
 };
