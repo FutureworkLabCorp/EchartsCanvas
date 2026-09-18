@@ -14,6 +14,7 @@ import {
   forceCollide,
   forceLink,
   forceManyBody,
+  forcePosition,
 } from "../../core/force";
 import type { SimLink } from "../../core/force";
 import { useVizTheme } from "../../theme/ThemeProvider";
@@ -38,6 +39,12 @@ export interface RelationGraphCanvasProps {
   focusNeighbours?: boolean;
   linkDistance?: number;
   chargeStrength?: number;
+  // How hard unlinked nodes are held towards the middle. Lower spreads the graph out.
+  gravity?: number;
+  // The first view never zooms out past this. Fitting several hundred cards onto one
+  // screen lands the scale around 0.14, well under the threshold where cards degrade to
+  // dots, so the graph opens at full size and pans instead of opening unreadable.
+  minInitialScale?: number;
   onSelect?: (node: GraphNode | null) => void;
   onHover?: (node: GraphNode | null) => void;
   // Unset renders no aria-label rather than a fabricated one.
@@ -56,6 +63,7 @@ const layout = (
   typeStyles: Record<string, GraphTypeStyle>,
   linkDistance: number,
   chargeStrength: number,
+  gravity: number,
 ): {
   nodes: RenderNode[];
   edges: Array<{ a: RenderNode; b: RenderNode; weight: number }>;
@@ -96,6 +104,7 @@ const layout = (
       "collide",
       forceCollide({ radius: collisionRadius, iterations: 2 }),
     )
+    .addForce("position", forcePosition({ strength: gravity }))
     .addForce("center", forceCenter(0, 0))
     .settle();
 
@@ -107,8 +116,10 @@ export const RelationGraphCanvas = ({
   typeStyles,
   selectedId = null,
   focusNeighbours = true,
-  linkDistance = 150,
-  chargeStrength = -900,
+  linkDistance = 130,
+  chargeStrength = -700,
+  gravity = 0.1,
+  minInitialScale = 1,
   onSelect,
   onHover,
   ariaLabel,
@@ -121,8 +132,8 @@ export const RelationGraphCanvas = ({
   const scaleRef = useRef(1);
 
   const { nodes, edges } = useMemo(
-    () => layout(data, typeStyles, linkDistance, chargeStrength),
-    [data, typeStyles, linkDistance, chargeStrength],
+    () => layout(data, typeStyles, linkDistance, chargeStrength, gravity),
+    [data, typeStyles, linkDistance, chargeStrength, gravity],
   );
 
   // Ids one hop from the selection, so the draw pass can dim the rest without walking
@@ -151,10 +162,13 @@ export const RelationGraphCanvas = ({
         y1 = Math.max(y1, node.y + node.height / 2);
       }
       const padding = 48;
-      const scale = Math.min(
-        (size.width - padding * 2) / Math.max(1, x1 - x0),
-        (size.height - padding * 2) / Math.max(1, y1 - y0),
-        1,
+      const scale = Math.max(
+        minInitialScale,
+        Math.min(
+          (size.width - padding * 2) / Math.max(1, x1 - x0),
+          (size.height - padding * 2) / Math.max(1, y1 - y0),
+          1,
+        ),
       );
       canvasRef.current?.setViewport({
         scale,
@@ -162,7 +176,7 @@ export const RelationGraphCanvas = ({
         offsetY: size.height / 2 - ((y0 + y1) / 2) * scale,
       });
     },
-    [nodes],
+    [nodes, minInitialScale],
   );
 
   const draw = useCallback(

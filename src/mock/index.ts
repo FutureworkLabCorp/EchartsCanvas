@@ -25,3 +25,4 @@ export {
   GRAPH_NODE_TYPES,
 } from "./graph";
 export type { MockGraphOptions, MockNodeType } from "./graph";
+export { axflowLight, axflowGraphTypeStyles } from "./axflowTheme";

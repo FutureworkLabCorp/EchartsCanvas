@@ -178,6 +178,8 @@ export {
   createRandom,
   createMockKnowledgeGraph,
   koGraphTypeStyles,
+  axflowLight,
+  axflowGraphTypeStyles,
   koStatusLabels,
   koEquipmentStatusLabels,
   koAnomalyChartLabels,

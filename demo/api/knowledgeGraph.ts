@@ -1,5 +1,4 @@
 import { callMcpTool } from "./mcp";
-import type { McpAuth } from "./mcp";
 import type { GraphData, GraphEdge, GraphNode } from "../../src";
 
 // This file is the normalizer the architecture doc calls for: everything the backend
@@ -100,17 +99,17 @@ export interface FetchKnowledgeGraphOptions {
   signal?: AbortSignal;
 }
 
-export const fetchKnowledgeGraph = async (
-  auth: McpAuth,
-  { label = "*", docIds, signal }: FetchKnowledgeGraphOptions = {},
-): Promise<GraphData> => {
+export const fetchKnowledgeGraph = async ({
+  label = "*",
+  docIds,
+  signal,
+}: FetchKnowledgeGraphOptions = {}): Promise<GraphData> => {
   const raw = await callMcpTool(
     "rag/get_knowledge_graph",
     {
       label: label === "*" ? "*" : [...label],
       ...(docIds && docIds.length > 0 ? { docIds: [...docIds] } : {}),
     },
-    auth,
     signal,
   );
   return mapKnowledgeGraph(raw);

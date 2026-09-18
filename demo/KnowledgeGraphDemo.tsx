@@ -2,113 +2,105 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Panel,
   RelationGraphCanvas,
+  ThemeProvider,
+  axflowGraphTypeStyles,
+  axflowLight,
   createMockKnowledgeGraph,
-  koGraphTypeStyles,
 } from "../src";
 import type { GraphData, GraphNode } from "../src";
 import { fetchKnowledgeGraph } from "./api/knowledgeGraph";
-import type { McpAuth } from "./api/mcp";
 
-type Source = "mock" | "live";
-
-const env = import.meta.env;
-
-const envAuth = (): McpAuth => ({
-  token: env["VITE_MCP_TOKEN"] ?? "",
-  orgId: env["VITE_MCP_ORG_ID"],
-  teamId: env["VITE_MCP_TEAM_ID"],
-  workspaceId: env["VITE_MCP_WORKSPACE_ID"],
-  contextToken: env["VITE_MCP_CONTEXT_TOKEN"],
-});
+type Source = "loading" | "live" | "mock";
 
 const mockGraph = createMockKnowledgeGraph();
 
 export const KnowledgeGraphDemo = () => {
-  const [source, setSource] = useState<Source>("mock");
-  const [graph, setGraph] = useState<GraphData>(mockGraph);
-  const [token, setToken] = useState(() => envAuth().token);
+  const [source, setSource] = useState<Source>("loading");
+  const [graph, setGraph] = useState<GraphData>({ nodes: [], edges: [] });
   const [selected, setSelected] = useState<GraphNode | null>(null);
   const [status, setStatus] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  // A pending request is abandoned when another starts or the view goes away, so a slow
-  // graph pull cannot land on top of a newer one.
-  useEffect(() => () => abortRef.current?.abort(), []);
-
-  const loadLive = useCallback(async () => {
-    if (!token) {
-      setStatus("토큰을 입력하세요.");
-      return;
-    }
+  const load = useCallback(async () => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
 
-    setLoading(true);
+    setSource("loading");
     setStatus(null);
     try {
-      const data = await fetchKnowledgeGraph(
-        { ...envAuth(), token },
-        { signal: controller.signal },
-      );
+      const data = await fetchKnowledgeGraph({ signal: controller.signal });
       if (controller.signal.aborted) return;
       setGraph(data);
-      setSource("live");
       setSelected(null);
-      setStatus(
-        data.nodes.length === 0
-          ? "응답은 왔지만 노드가 비어 있습니다. 워크스페이스 컨텍스트를 확인하세요."
-          : null,
-      );
+      if (data.nodes.length === 0) {
+        // The host answers an unknown tenant with an empty graph rather than an error,
+        // so this is the only signal that the key reached the wrong workspace.
+        setSource("mock");
+        setGraph(mockGraph);
+        setStatus("응답은 왔지만 노드가 비어 있어 목 데이터로 대체했습니다.");
+        return;
+      }
+      setSource("live");
     } catch (error) {
       if (controller.signal.aborted) return;
-      setStatus(error instanceof Error ? error.message : String(error));
-    } finally {
-      if (!controller.signal.aborted) setLoading(false);
+      setGraph(mockGraph);
+      setSource("mock");
+      setStatus(
+        `${error instanceof Error ? error.message : String(error)} — 목 데이터로 대체했습니다.`,
+      );
     }
-  }, [token]);
-
-  const useMock = useCallback(() => {
-    abortRef.current?.abort();
-    setGraph(mockGraph);
-    setSource("mock");
-    setSelected(null);
-    setStatus(null);
   }, []);
 
+  // Connects on mount: the dev proxy attaches the credential, so there is nothing for the
+  // page to collect first.
+  useEffect(() => {
+    void load();
+    return () => abortRef.current?.abort();
+  }, [load]);
+
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+    // Scoped to this view: the dashboard beside it keeps its own theme, and nesting the
+    // provider is what a host swapping one panel's palette would do.
+    <ThemeProvider
+      theme={axflowLight}
+      style={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        background: axflowLight.palette.background,
+        color: axflowLight.palette.textPrimary,
+        fontFamily: axflowLight.font.family,
+      }}
+    >
       <div
         style={{
           display: "flex",
-          gap: 8,
+          gap: 10,
           alignItems: "center",
           padding: "8px 4px",
-          flexWrap: "wrap",
+          fontSize: 12,
         }}
       >
-        <input
-          type="password"
-          value={token}
-          onChange={(event) => setToken(event.target.value)}
-          placeholder="linkbrain 액세스 토큰"
-          style={{ flex: "1 1 260px", padding: "6px 10px", fontSize: 13 }}
-        />
-        <button type="button" onClick={loadLive} disabled={loading}>
-          {loading ? "불러오는 중…" : "실데이터 불러오기"}
+        <button
+          type="button"
+          onClick={() => void load()}
+          disabled={source === "loading"}
+        >
+          {source === "loading" ? "불러오는 중…" : "다시 불러오기"}
         </button>
-        <button type="button" onClick={useMock} disabled={loading}>
-          목 데이터
-        </button>
-        <span style={{ fontSize: 12, opacity: 0.75 }}>
-          {source === "live" ? "실데이터" : "목 데이터"} · 노드{" "}
-          {graph.nodes.length} · 엣지 {graph.edges.length}
+        <span style={{ opacity: 0.75 }}>
+          {source === "live"
+            ? "ncpapidev 실데이터"
+            : source === "mock"
+              ? "목 데이터"
+              : "연결 중"}{" "}
+          · 노드 {graph.nodes.length} · 엣지 {graph.edges.length}
         </span>
       </div>
 
       {status && (
-        <div style={{ fontSize: 12, padding: "0 4px 8px", color: "#f87171" }}>
+        <div style={{ fontSize: 12, padding: "0 4px 8px", color: "#f59e0b" }}>
           {status}
         </div>
       )}
@@ -120,7 +112,7 @@ export const KnowledgeGraphDemo = () => {
           extra={
             selected ? (
               <span style={{ fontSize: 12 }}>
-                {koGraphTypeStyles[selected.type]?.label ?? selected.type} ·{" "}
+                {axflowGraphTypeStyles[selected.type]?.label ?? selected.type} ·{" "}
                 {selected.label}
               </span>
             ) : undefined
@@ -128,7 +120,7 @@ export const KnowledgeGraphDemo = () => {
         >
           <RelationGraphCanvas
             data={graph}
-            typeStyles={koGraphTypeStyles}
+            typeStyles={axflowGraphTypeStyles}
             selectedId={selected?.id ?? null}
             onSelect={setSelected}
             ariaLabel="지식그래프 관계도"
@@ -145,7 +137,7 @@ export const KnowledgeGraphDemo = () => {
           padding: "10px 4px 0",
         }}
       >
-        {Object.entries(koGraphTypeStyles).map(([key, style]) => (
+        {Object.entries(axflowGraphTypeStyles).map(([key, style]) => (
           <span
             key={key}
             style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
@@ -162,6 +154,6 @@ export const KnowledgeGraphDemo = () => {
           </span>
         ))}
       </div>
-    </div>
+    </ThemeProvider>
   );
 };

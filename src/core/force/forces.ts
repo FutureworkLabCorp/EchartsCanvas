@@ -277,6 +277,37 @@ export const forceCollide = <TNode extends SimNode>({
   return force;
 };
 
+export interface PositionOptions {
+  x?: number;
+  y?: number;
+  strength?: number;
+}
+
+// Pulls every node towards a point. Without it a node with no links feels only repulsion
+// and drifts out indefinitely, which spreads the layout until the fit-to-view scale drops
+// below the point where labels can be drawn at all.
+export const forcePosition = ({
+  x = 0,
+  y = 0,
+  strength = 0.06,
+}: PositionOptions = {}): Force => {
+  let nodes: readonly SimNode[] = [];
+
+  const force = (alpha: number): void => {
+    const k = strength * alpha;
+    for (const node of nodes) {
+      node.vx += (x - node.x) * k;
+      node.vy += (y - node.y) * k;
+    }
+  };
+
+  force.initialize = (next: readonly SimNode[]): void => {
+    nodes = next;
+  };
+
+  return force;
+};
+
 // Recentres by translation rather than by pulling each node, so it never distorts the
 // layout the other forces produced.
 export const forceCenter = (x = 0, y = 0): Force => {

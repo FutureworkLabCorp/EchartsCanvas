@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import dts from "vite-plugin-dts";
+import { createMcpMiddleware } from "./demo/dev-mcp-proxy";
 
 // Storybook's builder runs Vite in build mode against this same config, so `command`
 // alone cannot tell a library build from a Storybook build. Storybook sets this.
@@ -19,23 +20,32 @@ export default defineConfig(({ command, mode }) => ({
       "@": resolve(import.meta.dirname, "src"),
     },
   },
-  server: {
-    proxy: {
-      // Same-origin for the browser, so the demo issues no cross-origin request and the
-      // host needs no CORS grant. The path passes through unrewritten: the MCP host
-      // serves these tools under /mcpapi itself. Auth rides on the demo's headers.
-      // Only the dev server does this; the published library never reaches the network.
-      "/mcpapi": {
-        target:
-          loadEnv(mode, import.meta.dirname, "").VITE_MCP_API_PROXY_TARGET ||
-          "https://ncpapidev.linkbrain.ai.kr",
-        changeOrigin: true,
-        secure: true,
-      },
-    },
-  },
   plugins: [
     react(),
+    // Dev only. Signs in server-side and forwards /mcpapi/* with the resulting headers,
+    // so no credential is ever present in the browser.
+    {
+      name: "viz-kit:mcp-dev-auth",
+      apply: "serve" as const,
+      configureServer(server: {
+        middlewares: { use: (handler: unknown) => void };
+      }) {
+        const env = loadEnv(mode, import.meta.dirname, "");
+        server.middlewares.use(
+          createMcpMiddleware({
+            apiTarget:
+              env.VITE_DEV_API_PROXY_TARGET ??
+              "https://ncpapidev.linkbrain.ai.kr",
+            mcpTarget:
+              env.VITE_MCP_API_PROXY_TARGET ??
+              "https://ncpapidev.linkbrain.ai.kr",
+            email: env.MCP_DEMO_EMAIL ?? "",
+            password: env.MCP_DEMO_PASSWORD ?? "",
+            orgUuid: env.MCP_DEMO_ORG_UUID ?? "",
+          }),
+        );
+      },
+    },
     ...(command === "build" && !isStorybook
       ? [dts({ include: ["src"], insertTypesEntry: true })]
       : []),

@@ -1,20 +1,11 @@
 // The demo owns every network call. The library never fetches — it takes GraphData as a
-// prop — so this layer, the transport and the mapping below it, is deliberately outside
-// src/ and ships with nothing.
+// prop — so this layer, the transport and the mapping beside it, sits outside src/ and
+// ships with nothing.
 
-// Same-origin. The Vite dev proxy forwards /mcpapi/* to the MCP host, which is what keeps
-// the browser off a cross-origin request and out of CORS.
+// Same-origin. The Vite dev proxy forwards /mcpapi/* to the MCP host and attaches the
+// API key there, so no credential is ever present in the browser and no CORS grant is
+// needed on the host.
 const MCP_PREFIX = "/mcpapi";
-
-export interface McpAuth {
-  // A linkbrain access token. Read from VITE_MCP_TOKEN or pasted into the demo; never
-  // committed, and never sent anywhere but the proxy target.
-  token: string;
-  orgId?: string;
-  teamId?: string;
-  workspaceId?: string;
-  contextToken?: string;
-}
 
 export class McpError extends Error {
   constructor(
@@ -26,9 +17,9 @@ export class McpError extends Error {
   }
 }
 
-// The MCP host answers tools in an envelope: the payload sits under content[0].text as a
-// JSON string, or directly under `result`/`data` depending on the tool. Anything that is
-// already the payload passes through.
+// The MCP host answers tools in an envelope: the payload arrives as a JSON string under
+// content[0].text, or directly under `result`/`data` depending on the tool. Something
+// that is already the payload passes through.
 export const unwrapMcp = (raw: unknown): unknown => {
   if (!raw || typeof raw !== "object") return raw;
   const record = raw as Record<string, unknown>;
@@ -74,33 +65,39 @@ const readToolErrorMessage = (record: Record<string, unknown>): string => {
   return "MCP tool reported an error";
 };
 
+const readErrorDetail = async (response: Response): Promise<string> => {
+  try {
+    const text = await response.text();
+    if (!text) return response.statusText;
+    try {
+      const detail = (JSON.parse(text) as { detail?: unknown }).detail;
+      if (typeof detail === "string" && detail) return detail;
+    } catch {
+      // Not JSON; the raw text is the best description available.
+    }
+    return text.slice(0, 300);
+  } catch {
+    return response.statusText;
+  }
+};
+
 export const callMcpTool = async (
   tool: string,
   body: Record<string, unknown>,
-  auth: McpAuth,
   signal?: AbortSignal,
 ): Promise<unknown> => {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${auth.token}`,
-  };
-  // Workspace context. The host binds the token to a tenant through these, so a missing
-  // one comes back as an empty graph rather than an error.
-  if (auth.orgId) headers["X-Org-ID"] = auth.orgId;
-  if (auth.teamId) headers["X-Team-Id"] = auth.teamId;
-  if (auth.workspaceId) headers["X-Workspace-Id"] = auth.workspaceId;
-  if (auth.contextToken) headers["X-Context-Token"] = auth.contextToken;
-
   const response = await fetch(`${MCP_PREFIX}/${tool}`, {
     method: "POST",
-    headers,
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
     ...(signal ? { signal } : {}),
   });
 
   if (!response.ok) {
+    // Both the dev middleware and the upstream report why in a FastAPI-style `detail`,
+    // and the status alone ("501") says nothing a reader can act on.
     throw new McpError(
-      `${tool} failed: ${response.status} ${response.statusText}`,
+      `${tool} failed: ${response.status} ${await readErrorDetail(response)}`,
       response.status,
     );
   }
