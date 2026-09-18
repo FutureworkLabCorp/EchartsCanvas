@@ -1,13 +1,25 @@
 import { describe, it } from "vitest";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 import {
-  forceSimulation as d3Simulation,
-  forceLink as d3Link,
-  forceManyBody as d3ManyBody,
-  forceCollide as d3Collide,
-  forceCenter as d3Center,
-  forceX as d3X,
-  forceY as d3Y,
+  forceSimulation as d3dSimulation,
+  forceLink as d3dLink,
+  forceManyBody as d3dManyBody,
+  forceCollide as d3dCollide,
+  forceCenter as d3dCenter,
+  forceX as d3dX,
+  forceY as d3dY,
 } from "d3-force-3d";
+import {
+  forceSimulation as d2Simulation,
+  forceLink as d2Link,
+  forceManyBody as d2ManyBody,
+  forceCollide as d2Collide,
+  forceCenter as d2Center,
+  forceX as d2X,
+  forceY as d2Y,
+  type SimulationNodeDatum,
+} from "d3-force";
 import {
   ForceSimulation,
   forceCenter,
@@ -19,13 +31,18 @@ import {
 import type { SimNode } from "../src/core/force";
 import { createMockKnowledgeGraph } from "../src/mock/graph";
 
-// Head-to-head against the layout engine react-force-graph-2d actually runs: force-graph
-// depends on d3-force-3d, driven here in two dimensions.
+// Three layout engines on the same graph, the same force parameters and the same cooling
+// schedule, each run until alpha falls under alphaMin so none is handed a tick budget
+// that happens to suit it.
 //
-// Both sides get the same graph, the same force parameters and the same cooling
-// schedule, and both run until alpha falls under alphaMin, so neither is handed a tick
-// budget that happens to suit it. Timing covers the settle only — no canvas, no React —
-// because that is the part the two implementations actually dispute.
+// d3-force-3d is what react-force-graph-2d actually runs, through force-graph. Plain
+// d3-force is here because that fork is generalized to N dimensions, and without the 2D
+// original as a third reading there is no telling whether a difference is against d3's
+// algorithm or only against the cost of that generalization.
+//
+// Timing covers the settle alone — no canvas, no React — since that is the part the
+// implementations dispute. Ticks and spread are recorded beside it: finishing sooner by
+// running fewer steps, or by settling into a differently sized layout, is not a win.
 
 const LINK_DISTANCE = 130;
 const CHARGE_STRENGTH = -700;
@@ -44,7 +61,18 @@ const SIZES: Array<[number, number]> = [
 
 const REPEATS = 3;
 
-const runOurs = (nodeCount: number, edgeCount: number): number => {
+interface Run {
+  ms: number;
+  ticks: number;
+  spread: number;
+}
+
+const spreadOf = (
+  nodes: ReadonlyArray<{ x?: number | undefined; y?: number | undefined }>,
+): number =>
+  Math.max(...nodes.map((node) => Math.hypot(node.x ?? 0, node.y ?? 0)));
+
+const runOurs = (nodeCount: number, edgeCount: number): Run => {
   const graph = createMockKnowledgeGraph({ nodeCount, edgeCount });
   const nodes: SimNode[] = graph.nodes.map((node) => ({
     id: node.id,
@@ -65,20 +93,28 @@ const runOurs = (nodeCount: number, edgeCount: number): number => {
     );
 
   const started = performance.now();
-  new ForceSimulation(nodes, {
+  const simulation = new ForceSimulation(nodes, {
     alphaMin: ALPHA_MIN,
     velocityDecay: VELOCITY_DECAY,
   })
     .addForce("link", forceLink(links, { distance: LINK_DISTANCE }))
     .addForce("charge", forceManyBody({ strength: CHARGE_STRENGTH }))
-    .addForce("collide", forceCollide({ radius: COLLIDE_RADIUS, iterations: 2 }))
+    .addForce(
+      "collide",
+      forceCollide({ radius: COLLIDE_RADIUS, iterations: 2 }),
+    )
     .addForce("position", forcePosition({ strength: GRAVITY }))
-    .addForce("center", forceCenter(0, 0))
-    .settle(Number.MAX_SAFE_INTEGER);
-  return performance.now() - started;
+    .addForce("center", forceCenter(0, 0));
+
+  let ticks = 0;
+  while (!simulation.settled) {
+    simulation.tick();
+    ticks += 1;
+  }
+  return { ms: performance.now() - started, ticks, spread: spreadOf(nodes) };
 };
 
-const runD3 = (nodeCount: number, edgeCount: number): number => {
+const runD3Force3d = (nodeCount: number, edgeCount: number): Run => {
   const graph = createMockKnowledgeGraph({ nodeCount, edgeCount });
   // d3 mutates the objects it is given and resolves link endpoints by id itself.
   const nodes = graph.nodes.map((node) => ({ id: node.id }));
@@ -88,60 +124,125 @@ const runD3 = (nodeCount: number, edgeCount: number): number => {
   }));
 
   const started = performance.now();
-  const simulation = d3Simulation(nodes, 2)
+  const simulation = d3dSimulation(nodes, 2)
     .alphaMin(ALPHA_MIN)
     .velocityDecay(VELOCITY_DECAY)
     .force(
       "link",
-      d3Link(links)
+      d3dLink(links)
         .id((node: { id: string }) => node.id)
         .distance(LINK_DISTANCE),
     )
-    .force("charge", d3ManyBody().strength(CHARGE_STRENGTH))
-    .force("collide", d3Collide(COLLIDE_RADIUS).iterations(2))
+    .force("charge", d3dManyBody().strength(CHARGE_STRENGTH))
+    .force("collide", d3dCollide(COLLIDE_RADIUS).iterations(2))
     // d3 has no single positioning force; forceX + forceY is the two-dimensional pair
     // matching what forcePosition does on our side.
-    .force("x", d3X(0).strength(GRAVITY))
-    .force("y", d3Y(0).strength(GRAVITY))
-    .force("center", d3Center(0, 0))
+    .force("x", d3dX(0).strength(GRAVITY))
+    .force("y", d3dY(0).strength(GRAVITY))
+    .force("center", d3dCenter(0, 0))
     .stop();
 
-  while (simulation.alpha() >= ALPHA_MIN) simulation.tick();
-  return performance.now() - started;
+  let ticks = 0;
+  while (simulation.alpha() >= ALPHA_MIN) {
+    simulation.tick();
+    ticks += 1;
+  }
+  return {
+    ms: performance.now() - started,
+    ticks,
+    spread: spreadOf(nodes as Array<{ x?: number; y?: number }>),
+  };
 };
 
-const best = (run: () => number): number => {
+interface D2Node extends SimulationNodeDatum {
+  id: string;
+}
+
+const runD3Force = (nodeCount: number, edgeCount: number): Run => {
+  const graph = createMockKnowledgeGraph({ nodeCount, edgeCount });
+  const nodes: D2Node[] = graph.nodes.map((node) => ({ id: node.id }));
+  const links = graph.edges.map((edge) => ({
+    source: edge.source,
+    target: edge.target,
+  }));
+
+  const started = performance.now();
+  const simulation = d2Simulation<D2Node>(nodes)
+    .alphaMin(ALPHA_MIN)
+    .velocityDecay(VELOCITY_DECAY)
+    .force(
+      "link",
+      d2Link<D2Node, { source: string; target: string }>(links)
+        .id((node) => node.id)
+        .distance(LINK_DISTANCE),
+    )
+    .force("charge", d2ManyBody<D2Node>().strength(CHARGE_STRENGTH))
+    .force("collide", d2Collide<D2Node>(COLLIDE_RADIUS).iterations(2))
+    .force("x", d2X<D2Node>(0).strength(GRAVITY))
+    .force("y", d2Y<D2Node>(0).strength(GRAVITY))
+    .force("center", d2Center<D2Node>(0, 0))
+    .stop();
+
+  let ticks = 0;
+  while (simulation.alpha() >= ALPHA_MIN) {
+    simulation.tick();
+    ticks += 1;
+  }
+  return { ms: performance.now() - started, ticks, spread: spreadOf(nodes) };
+};
+
+const best = (run: () => Run): Run => {
   run();
-  let fastest = Infinity;
-  for (let i = 0; i < REPEATS; i += 1) fastest = Math.min(fastest, run());
+  let fastest: Run = { ms: Infinity, ticks: 0, spread: 0 };
+  for (let i = 0; i < REPEATS; i += 1) {
+    const result = run();
+    if (result.ms < fastest.ms) fastest = result;
+  }
   return fastest;
 };
 
 const pad = (value: string, width: number): string => value.padStart(width);
+const kilo = (value: number): string =>
+  value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value.toFixed(0);
 
 describe("layout settle", () => {
-  it("compares ours against d3-force-3d", () => {
+  it("compares ours against d3-force-3d and d3-force", () => {
     const lines = [
       "",
-      "Layout settle — ours vs d3-force-3d (the engine react-force-graph-2d runs)",
-      `link=${LINK_DISTANCE} charge=${CHARGE_STRENGTH} collide=${COLLIDE_RADIUS} gravity=${GRAVITY} alphaMin=${ALPHA_MIN}`,
-      `best of ${REPEATS}, after one warm-up`,
+      "Layout settle — ours vs d3-force-3d (what react-force-graph-2d runs) vs d3-force",
+      `link=${LINK_DISTANCE} charge=${CHARGE_STRENGTH} collide=${COLLIDE_RADIUS} gravity=${GRAVITY} alphaMin=${ALPHA_MIN} velocityDecay=${VELOCITY_DECAY}`,
+      `best of ${REPEATS} after one warm-up. ticks and spread guard against winning by doing less.`,
       "",
-      "  nodes  edges      ours       d3     ratio",
-      "  -----  -----  --------  -------  --------",
+      "  nodes      ours    d3-3d      d3f  ours/3d  ours/d3f  ticks o/3d/d3f  spread o/3d/d3f",
+      "  -----  --------  -------  -------  -------  --------  --------------  ---------------",
     ];
 
     for (const [nodeCount, edgeCount] of SIZES) {
       const ours = best(() => runOurs(nodeCount, edgeCount));
-      const d3 = best(() => runD3(nodeCount, edgeCount));
-      const ratio = ours / d3;
+      const d3d = best(() => runD3Force3d(nodeCount, edgeCount));
+      const d2f = best(() => runD3Force(nodeCount, edgeCount));
+
       lines.push(
-        `  ${pad(String(nodeCount), 5)}  ${pad(String(edgeCount), 5)}  ` +
-          `${pad(`${ours.toFixed(0)}ms`, 8)}  ${pad(`${d3.toFixed(0)}ms`, 7)}  ` +
-          `${pad(`${ratio.toFixed(2)}x`, 8)}${ratio > 1 ? "  slower" : "  faster"}`,
+        `  ${pad(String(nodeCount), 5)}  ` +
+          `${pad(`${ours.ms.toFixed(0)}ms`, 8)}  ` +
+          `${pad(`${d3d.ms.toFixed(0)}ms`, 7)}  ` +
+          `${pad(`${d2f.ms.toFixed(0)}ms`, 7)}  ` +
+          `${pad(`${(ours.ms / d3d.ms).toFixed(2)}x`, 7)}  ` +
+          `${pad(`${(ours.ms / d2f.ms).toFixed(2)}x`, 8)}  ` +
+          `${pad(`${ours.ticks}/${d3d.ticks}/${d2f.ticks}`, 14)}  ` +
+          `${kilo(ours.spread)}/${kilo(d3d.spread)}/${kilo(d2f.spread)}`,
       );
     }
 
-    console.log(lines.join("\n"));
+    const report = lines.join("\n");
+    // Written as well as logged: vitest captures console output, and a measurement is
+    // worth keeping anyway — a later claim has to cite the run it came from.
+    const out = "bench/results/layout.md";
+    mkdirSync(dirname(out), { recursive: true });
+    writeFileSync(
+      out,
+      `# Layout settle benchmark\n\nRun ${new Date().toISOString()} on node ${process.version}.\n\n\`\`\`${report}\n\`\`\`\n`,
+    );
+    console.log(report);
   });
 });
