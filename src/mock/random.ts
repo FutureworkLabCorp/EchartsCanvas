@@ -1,7 +1,5 @@
-/**
- * 시드 기반 난수(mulberry32).
- * Storybook 스냅샷·테스트에서 동일한 데이터를 재현하기 위해 Math.random 대신 사용한다.
- */
+// Seeded (mulberry32) so a story or a test renders the same data on every run, which
+// Math.random cannot give.
 export function createRandom(seed = 20260803): () => number {
   let state = seed >>> 0;
   return () => {
@@ -13,7 +11,7 @@ export function createRandom(seed = 20260803): () => number {
   };
 }
 
-/** 표준정규분포 근사(Box-Muller) */
+// Box-Muller.
 export function gaussian(random: () => number, mean = 0, stdDev = 1): number {
   const u = Math.max(random(), Number.EPSILON);
   const v = random();

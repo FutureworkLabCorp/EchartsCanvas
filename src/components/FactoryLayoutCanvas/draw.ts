@@ -6,7 +6,6 @@ import type {
   LayoutZone,
 } from "../../types/domain";
 
-/** 도면 격자 */
 export function drawGrid(
   ctx: CanvasRenderingContext2D,
   layout: FactoryLayout,
@@ -29,7 +28,6 @@ export function drawGrid(
   }
   ctx.stroke();
 
-  // 도면 외곽선
   ctx.strokeStyle = theme.palette.border;
   ctx.lineWidth = 2;
   ctx.strokeRect(0, 0, layout.width, layout.height);
@@ -61,7 +59,6 @@ export function drawZone(
   ctx.restore();
 }
 
-/** 컨베이어 경로 + 흐름 애니메이션 */
 export function drawConveyor(
   ctx: CanvasRenderingContext2D,
   conveyor: ConveyorPath,
@@ -93,7 +90,7 @@ export function drawConveyor(
   ctx.globalAlpha = 0.8;
   ctx.lineWidth = 2;
   ctx.setLineDash([10, 12]);
-  // 대시 오프셋을 시간에 따라 밀어 흐름을 표현한다(도형 재계산 없음).
+  // Marching the dash offset reads as flow without recomputing any geometry.
   ctx.lineDashOffset = direction === 0 ? 0 : -((elapsed / 24) * direction) % 22;
   ctx.stroke();
   ctx.restore();
@@ -102,11 +99,10 @@ export function drawConveyor(
 export interface EquipmentDrawState {
   hovered: boolean;
   selected: boolean;
-  /** 0~1 펄스 위상 */
+  // 0..1
   pulse: number;
 }
 
-/** 설비 박스 + 상태 펄스 */
 export function drawEquipment(
   ctx: CanvasRenderingContext2D,
   node: EquipmentNode,
@@ -126,7 +122,8 @@ export function drawEquipment(
     ctx.translate(-(x + width / 2), -(y + height / 2));
   }
 
-  // 이상 상태는 펄스 링으로 주의를 끈다(정상 설비는 애니메이션 없음 → GPU 부담 최소화).
+  // Only abnormal states pulse. Animating every machine would mean a full repaint each
+  // frame on a plan where almost nothing is wrong.
   if (node.status === "warning" || node.status === "critical") {
     const spread = 4 + state.pulse * 12;
     ctx.globalAlpha = (1 - state.pulse) * 0.5;
@@ -161,7 +158,6 @@ export function drawEquipment(
     ctx.restore();
   }
 
-  // 상태 인디케이터
   ctx.beginPath();
   ctx.arc(x + width - 8, y + 8, 3.5, 0, Math.PI * 2);
   ctx.fillStyle = color;

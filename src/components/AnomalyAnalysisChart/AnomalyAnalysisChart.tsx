@@ -22,22 +22,18 @@ import type {
 export type AnomalyChartMode = "timeline" | "heatmap";
 
 export interface AnomalyAnalysisChartProps {
-  /** 실측 시계열 */
   data: TimeValuePoint[];
-  /** AI 예측 정상 범위(상·하한) */
   predictionBand?: PredictionBandPoint[];
-  /** 탐지된 이상 지점 */
   anomalies?: AnomalyPoint[];
-  /** 강조할 시간 구간(정비 구간, 이상 지속 구간 등) */
   markRanges?: TimeRange[];
   mode?: AnomalyChartMode;
-  /** heatmap 모드 데이터. 미지정 시 data 를 (일 × 시간) 으로 자동 집계한다. */
+  // Unset aggregates `data` into a day-by-hour grid.
   heatmap?: { cells: HeatmapCell[]; xLabels: string[]; yLabels: string[] };
   seriesName?: string;
   unit?: string;
-  /** 렌더 전 다운샘플 목표 포인트 수. 0 이면 원본 그대로 사용 */
+  // 0 renders every point.
   downsampleTo?: number;
-  /** DataZoom 초기 구간(%) */
+  // Percent, not indices.
   initialZoom?: [number, number];
   onAnomalyClick?: (anomaly: AnomalyPoint) => void;
   onRangeChange?: (range: TimeRange) => void;
@@ -45,14 +41,10 @@ export interface AnomalyAnalysisChartProps {
   style?: CSSProperties;
 }
 
-/**
- * AI 이상 탐지 시계열 차트.
- *
- * - 예측 정상 범위: 하한 라인 + (상한-하한) 스택 영역으로 밴드를 표현한다.
- * - 이상 지점: markPoint 로 표시하고 클릭 시 `ON_ANOMALY_SELECT` 를 발행한다.
- * - 대용량 이력: LTTB 다운샘플 + DataZoom(inside/slider) 조합으로 수십만 포인트도 탐색 가능하다.
- * - Heatmap 전환: 동일 데이터를 (일 × 시간) 밀도로 집계해 패턴을 본다.
- */
+// The prediction band is drawn as a transparent lower line with the (upper - lower)
+// thickness stacked on top, because ECharts has no band series. LTTB plus DataZoom is
+// what makes hundreds of thousands of points navigable, and the heatmap view re-buckets
+// the same data by day and hour to show a pattern the line hides.
 export function AnomalyAnalysisChart({
   data,
   predictionBand,
@@ -156,7 +148,7 @@ export function AnomalyAnalysisChart({
         },
       ],
       series: [
-        // 밴드 하한(투명) — 스택 기준선
+        // Invisible; it exists to be the stack baseline.
         {
           id: "band-lower",
           name: "예측 정상범위",
@@ -168,7 +160,7 @@ export function AnomalyAnalysisChart({
           silent: true,
           data: lowerSeries,
         },
-        // 밴드 두께(상한-하한) — 실제로 칠해지는 영역
+        // The visible band: its height is upper - lower.
         {
           id: "band-width",
           type: "line",
@@ -382,10 +374,8 @@ interface ZoomOption {
   }>;
 }
 
-/**
- * DataZoom 상태에서 현재 표시 중인 시간 구간을 계산한다.
- * ECharts 는 확대 방식에 따라 startValue(절대값) 또는 start(백분율) 중 하나만 채워주므로 둘 다 처리한다.
- */
+// ECharts fills startValue on a drag-zoom and start on a wheel-zoom, never both, so the
+// visible range has to be read from whichever one is present.
 function readZoomRange(
   option: ZoomOption,
   data: readonly TimeValuePoint[],
@@ -410,7 +400,6 @@ function readZoomRange(
   return { start, end };
 }
 
-/** 시계열을 (일 × 시간) 격자로 평균 집계해 히트맵 데이터로 변환한다. */
 export function aggregateToHeatmap(data: readonly TimeValuePoint[]): {
   cells: HeatmapCell[];
   xLabels: string[];
@@ -445,6 +434,5 @@ export function aggregateToHeatmap(data: readonly TimeValuePoint[]): {
   return { cells, xLabels, yLabels: days };
 }
 
-/** 툴팁 등에서 재사용하는 시각 포맷 */
 export const formatAnomalyTime = (time: number): string =>
   formatTime(time, true);

@@ -5,27 +5,23 @@ import type { Canvas2DDrawArgs } from "../../core/Canvas2DBase/types";
 import { clamp } from "../../core/utils/format";
 
 export interface LiquidFillWidgetProps {
-  /** 0~1 */
+  // 0..1
   value: number;
   label?: string;
-  /** 미지정 시 임계값에 따라 테마 상태색 사용 */
+  // Falls back to the theme status colour for the band the value lands in.
   color?: string;
   warningBelow?: number;
   criticalBelow?: number;
-  /** 값 변화 시 물결 높이가 부드럽게 따라가는 속도(0~1, 프레임당 보간 계수) */
+  // Per-frame interpolation factor in 0..1, not a duration.
   easing?: number;
   paused?: boolean;
   className?: string;
   style?: CSSProperties;
 }
 
-/**
- * LiquidFill(수위) 위젯.
- *
- * ECharts 플러그인(echarts-liquidfill) 대신 `Canvas2DBase` 위에 직접 구현했다.
- * - 플러그인은 전체 echarts 번들에 의존해 코어 트리셰이킹을 깨뜨린다.
- * - 파형 애니메이션은 도형 1개짜리 단순 렌더라 공통 Canvas 루프로 충분하다.
- */
+// Built on Canvas2DBase rather than echarts-liquidfill: that plugin pulls the full
+// ECharts bundle and breaks the modular registration in core/echarts. The wave is one
+// shape, so the shared canvas loop covers it.
 export function LiquidFillWidget({
   value,
   label,
@@ -43,7 +39,7 @@ export function LiquidFillWidget({
 
   const draw = useCallback(
     ({ ctx, width, height, frame, theme }: Canvas2DDrawArgs) => {
-      // 현재 표시값을 목표값으로 서서히 보간해 급격한 값 점프를 완화한다.
+      // Interpolating towards the target: a sensor step change would otherwise snap.
       displayRef.current += (targetRef.current - displayRef.current) * easing;
       const ratio = displayRef.current;
 
@@ -63,14 +59,12 @@ export function LiquidFillWidget({
 
       ctx.save();
 
-      // 외곽 링
       ctx.beginPath();
       ctx.arc(cx, cy, radius, 0, Math.PI * 2);
       ctx.strokeStyle = palette.border;
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // 원 내부로 클리핑 후 물결 채우기
       ctx.beginPath();
       ctx.arc(cx, cy, radius - 2, 0, Math.PI * 2);
       ctx.clip();
@@ -100,7 +94,6 @@ export function LiquidFillWidget({
       ctx.globalAlpha = 1;
       ctx.restore();
 
-      // 라벨
       ctx.save();
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";

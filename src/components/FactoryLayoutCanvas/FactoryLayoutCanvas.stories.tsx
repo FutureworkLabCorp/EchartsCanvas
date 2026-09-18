@@ -39,7 +39,7 @@ export const 기본: Story = {
   ),
 };
 
-/** 상태가 실시간으로 변하는 시나리오(경고 설비는 Pulse 애니메이션) */
+// Status changes live; only the abnormal machines pulse.
 export const 실시간_상태_변화: Story = {
   args: { layout },
   render: (args) => {
@@ -62,7 +62,7 @@ export const 실시간_상태_변화: Story = {
   },
 };
 
-/** 설비 선택 → 상세 패널 연동(Hit Detection 검증) */
+// Exercises hit detection: selecting a machine drives a detail panel.
 export const 설비_선택_연동: Story = {
   args: { layout },
   render: (args) => {
@@ -106,7 +106,7 @@ export const 설비_선택_연동: Story = {
   },
 };
 
-/** 정적 도면 — rAF 루프를 끄고 필요할 때만 렌더 */
+// Static plan with the rAF loop off, drawing only on demand.
 export const 정적_도면_ondemand: Story = {
   args: { layout, animate: false },
   render: (args) => (

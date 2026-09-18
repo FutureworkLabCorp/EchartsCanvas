@@ -23,32 +23,26 @@ import { drawConveyor, drawEquipment, drawGrid, drawZone } from "./draw";
 
 export interface FactoryLayoutCanvasProps {
   layout: FactoryLayout;
-  /** 실시간 상태 오버레이. layout.equipments 의 status 를 덮어쓴다. */
+  // Overrides the status on layout.equipments, so the layout itself can stay static.
   statusOverrides?: Record<string, EquipmentStatus>;
   selectedId?: string | null;
   showLabels?: boolean;
   showTooltip?: boolean;
-  /** 컨테이너 크기에 맞춰 도면을 자동 맞춤(기본 true) */
   autoFit?: boolean;
   enablePan?: boolean;
   enableZoom?: boolean;
-  /** 정적 도면이면 false 로 두어 rAF 루프를 끄고 필요할 때만 렌더한다. */
+  // false stops the rAF loop, which is what a plan with no pulsing equipment wants.
   animate?: boolean;
   onSelect?: (equipment: EquipmentNode | null) => void;
   onHover?: (equipment: EquipmentNode | null) => void;
-  /** true 면 선택/호버를 EventBus 로도 발행한다(기본 true) */
   emitEvents?: boolean;
   className?: string;
   style?: CSSProperties;
 }
 
-/**
- * 2D 공장 레이아웃 / 스마트 맵.
- *
- * `Canvas2DBase` 를 확장해 도면 배경·존·컨베이어·설비를 직접 렌더한다.
- * SVG/DOM 노드 대신 Canvas 한 장에 그리므로 설비 수백 대에서도 노드 폭증이 없다.
- * 클릭·호버는 DOM 이벤트가 아니라 좌표 기반 Hit Detection 으로 판정한다.
- */
+// Draws the plan, zones, conveyors and equipment onto one canvas rather than a DOM or
+// SVG node per item, which is what keeps several hundred machines affordable. Clicks and
+// hovers resolve by coordinate hit testing, since there are no elements to receive them.
 export function FactoryLayoutCanvas({
   layout,
   statusOverrides,
@@ -69,7 +63,8 @@ export function FactoryLayoutCanvas({
   const canvasRef = useRef<Canvas2DHandle>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const backgroundRef = useRef<HTMLImageElement | null>(null);
-  /** draw 콜백이 최신 hover 대상을 읽되, 리렌더로 재생성되지 않도록 ref 로 보관한다. */
+  // In a ref, not state: the draw callback has to read the current hover without being
+  // rebuilt, and a re-render per hover would defeat the canvas.
   const tooltipRef = useRef<EquipmentNode | null>(null);
   const [tooltip, setTooltip] = useState<{
     node: EquipmentNode;
@@ -77,7 +72,6 @@ export function FactoryLayoutCanvas({
     y: number;
   } | null>(null);
 
-  // 상태 오버레이를 적용한 최종 설비 목록
   const equipments = useMemo<EquipmentNode[]>(
     () =>
       layout.equipments.map((node) =>
@@ -92,7 +86,6 @@ export function FactoryLayoutCanvas({
   const selectedRef = useRef(selectedId);
   selectedRef.current = selectedId;
 
-  // 배경 평면도 로딩
   useEffect(() => {
     if (!layout.backgroundImage) {
       backgroundRef.current = null;
@@ -118,7 +111,6 @@ export function FactoryLayoutCanvas({
     [autoFit, layout],
   );
 
-  // 도면이 바뀌면 다시 맞춘다.
   useEffect(() => {
     const el = wrapperRef.current;
     if (!el) return;
@@ -128,7 +120,6 @@ export function FactoryLayoutCanvas({
 
   const draw = useCallback(
     ({ ctx, frame, theme: current }: Canvas2DDrawArgs) => {
-      // 배경 평면도
       const image = backgroundRef.current;
       if (image) {
         ctx.drawImage(image, 0, 0, layout.width, layout.height);
@@ -143,7 +134,7 @@ export function FactoryLayoutCanvas({
         drawConveyor(ctx, conveyor, current, frame.elapsed);
       }
 
-      // 0→1 을 반복하는 펄스 위상
+      // Phase cycles 0 to 1; the draw helpers turn it into a radius and an alpha.
       const pulse =
         (frame.elapsed % current.motion.pulseDuration) /
         current.motion.pulseDuration;

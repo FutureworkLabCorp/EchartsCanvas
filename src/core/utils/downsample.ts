@@ -1,10 +1,5 @@
-/**
- * LTTB(Largest-Triangle-Three-Buckets) 다운샘플링.
- *
- * 수십만 포인트의 이력 데이터를 화면 픽셀 수 수준으로 줄이면서
- * 피크/밸리 같은 시각적 특징을 보존한다. DataStreamBuffer 의 `transform` 이나
- * 이력 조회 결과 전처리에 사용한다.
- */
+// Largest-Triangle-Three-Buckets. Reduces hundreds of thousands of points to roughly the
+// pixel width available while keeping peaks and valleys, which plain stride sampling drops.
 export function lttb<T>(
   data: readonly T[],
   threshold: number,
@@ -24,7 +19,6 @@ export function lttb<T>(
   sampled.push(first);
 
   for (let i = 0; i < threshold - 2; i += 1) {
-    // 다음 버킷의 평균점 계산
     const avgRangeStart = Math.floor((i + 1) * bucketSize) + 1;
     const avgRangeEnd = Math.min(Math.floor((i + 2) * bucketSize) + 1, length);
     const avgRangeLength = Math.max(1, avgRangeEnd - avgRangeStart);
@@ -40,7 +34,6 @@ export function lttb<T>(
     avgX /= avgRangeLength;
     avgY /= avgRangeLength;
 
-    // 현재 버킷에서 삼각형 넓이가 최대인 점 선택
     const rangeStart = Math.floor(i * bucketSize) + 1;
     const rangeEnd = Math.floor((i + 1) * bucketSize) + 1;
     const pointA = data[a];
@@ -72,7 +65,7 @@ export function lttb<T>(
   return sampled;
 }
 
-/** 단순 최대/최소 보존 다운샘플(min-max). LTTB 보다 빠르며 스파이크 검출에 유리하다. */
+// Cheaper than LTTB and keeps every extreme, so a one-sample spike survives.
 export function minMaxDownsample<T>(
   data: readonly T[],
   targetPoints: number,

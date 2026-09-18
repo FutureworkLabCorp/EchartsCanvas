@@ -1,7 +1,6 @@
 import { echarts } from "../core/echarts";
 import type { VizTheme } from "./types";
 
-/** VizTheme → ECharts 테마 객체 변환 */
 export function buildEChartsTheme(theme: VizTheme): Record<string, unknown> {
   const { palette, font } = theme;
 
@@ -71,7 +70,8 @@ export function buildEChartsTheme(theme: VizTheme): Record<string, unknown> {
       symbol: "none",
       smooth: false,
       lineStyle: { width: 1.5 },
-      // 실시간 스트리밍에서 샘플링 비용을 줄인다.
+      // Lets ECharts drop points it cannot distinguish at the current width,
+      // which is what keeps a streaming line affordable.
       sampling: "lttb",
     },
     scatter: { symbolSize: 6 },
@@ -122,11 +122,8 @@ export function buildEChartsTheme(theme: VizTheme): Record<string, unknown> {
 
 const registered = new Set<string>();
 
-/**
- * ECharts 전역 테마 레지스트리에 등록한다.
- * 동일 이름으로 재등록하면 덮어쓰며, 이미 생성된 인스턴스에는 반영되지 않는다
- * (BaseChart 가 테마 변경 시 인스턴스를 재생성한다).
- */
+// Re-registering a name overwrites it, but live instances keep the theme they were
+// built with, so BaseChart recreates its instance when the theme changes.
 export function registerVizTheme(theme: VizTheme): string {
   echarts.registerTheme(theme.name, buildEChartsTheme(theme));
   registered.add(theme.name);

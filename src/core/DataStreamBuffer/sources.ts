@@ -8,22 +8,17 @@ interface SocketLike {
 }
 
 export interface WebSocketSourceOptions<T> {
-  /** 수신 메시지 → 도메인 타입 변환. 기본값은 JSON.parse */
   parse?: (raw: unknown) => T | T[] | null;
-  /** 재연결 사용 여부(기본 true) */
   reconnect?: boolean;
-  /** 재연결 최초 지연(ms). 실패할수록 2배씩 증가하며 maxDelay 로 상한 */
+  // Doubles on each failed attempt, capped at maxDelay.
   reconnectDelay?: number;
   maxReconnectDelay?: number;
   protocols?: string | string[];
-  /** 테스트/Mock 주입용 소켓 팩토리 */
   factory?: (url: string, protocols?: string | string[]) => SocketLike;
 }
 
-/**
- * WebSocket 스트림 소스. 지수 백오프 재연결과 완전한 리스너 해제를 포함한다.
- * 온프레미스 네트워크 순단 시 대시보드가 스스로 복구되어야 하므로 재연결은 기본 활성이다.
- */
+// Reconnects by default: an on-premises dashboard runs unattended for days, and a brief
+// network blip must not leave it showing a frozen chart until someone reloads it.
 export function createWebSocketSource<T>(
   url: string,
   options: WebSocketSourceOptions<T> = {},
@@ -125,12 +120,10 @@ export function createWebSocketSource<T>(
 
 export interface SSESourceOptions<T> {
   parse?: (raw: string) => T | T[] | null;
-  /** 구독할 이벤트 이름 목록. 미지정 시 기본 message 이벤트 */
   eventNames?: string[];
   withCredentials?: boolean;
 }
 
-/** Server-Sent Events 스트림 소스 */
 export function createSSESource<T>(
   url: string,
   options: SSESourceOptions<T> = {},
@@ -185,7 +178,6 @@ export function createSSESource<T>(
   };
 }
 
-/** 임의의 emitter 를 StreamSource 로 감싸는 헬퍼(테스트·Mock 용) */
 export function createEmitterSource<T>(): StreamSource<T> & {
   emit: (item: T) => void;
 } {

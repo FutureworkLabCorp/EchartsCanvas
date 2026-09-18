@@ -8,29 +8,24 @@ import { createRandom, gaussian } from "./random";
 export interface MockSensorConfig {
   sensorId: string;
   equipmentId?: string;
-  /** 기준값 */
   base: number;
-  /** 사인파 진폭 */
   amplitude?: number;
-  /** 주기(ms) */
   period?: number;
-  /** 노이즈 표준편차 */
   noise?: number;
-  /** 스파이크 발생 확률(0~1, 샘플당) */
+  // Per sample, in 0..1.
   spikeChance?: number;
   spikeMagnitude?: number;
-  /** 서서히 상승하는 드리프트(단위/초) — 임계치 도달 시나리오 재현용 */
+  // Units per second. Lets a run reach a threshold on its own rather than by a spike.
   drift?: number;
 }
 
 export interface MockSensorStreamOptions {
   sensors: MockSensorConfig[];
-  /** 센서당 초당 샘플 수(기본 20Hz). 고주파 테스트는 200~1000 까지 올려본다. */
+  // Samples per second per sensor. 200-1000 is the range worth testing the buffer at.
   hz?: number;
-  /** 한 번의 타이머 tick 에서 몰아서 발생시킬 샘플 수(WebSocket 배치 수신 모사) */
+  // Emitted together on one tick, the way a socket delivers a batched frame.
   burst?: number;
   seed?: number;
-  /** 자동 시작(기본 true) */
   autoStart?: boolean;
 }
 
@@ -38,14 +33,11 @@ export interface MockSensorStream extends StreamSource<SensorSample> {
   start: () => void;
   stop: () => void;
   isRunning: () => boolean;
-  /** 특정 센서에 즉시 이상값을 주입한다(스토리북 버튼용) */
   injectAnomaly: (sensorId: string, magnitude?: number) => void;
 }
 
-/**
- * WebSocket 없이 고주파 센서 스트림을 흉내 내는 Mock 소스.
- * `DataStreamBuffer.connect()` 에 그대로 연결할 수 있다.
- */
+// A high-rate sensor stream with no socket behind it. Satisfies StreamSource, so it
+// connects to a DataStreamBuffer unchanged.
 export function createMockSensorStream({
   sensors,
   hz = 20,
@@ -66,12 +58,13 @@ export function createMockSensorStream({
     for (const handler of handlers) handler(sample);
   };
 
-  const tickInterval = Math.max(1000 / (hz / burst), 8); // 최소 8ms 간격 유지
+  // Floored at 8ms: below that the timer resolution stops being the limiting factor.
+  const tickInterval = Math.max(1000 / (hz / burst), 8);
 
   const tick = () => {
     const now = Date.now();
     for (let i = 0; i < burst; i += 1) {
-      // burst 내 샘플은 시간축을 균등 분할해 배치 수신을 사실적으로 만든다.
+      // Spreading a burst across the interval, so timestamps are not all identical.
       const time = now - Math.round(((burst - 1 - i) * tickInterval) / burst);
 
       for (const config of sensors) {
@@ -158,11 +151,8 @@ export function createMockSensorStream({
   };
 }
 
-/**
- * 브라우저 WebSocket API 를 흉내 내는 Mock 소켓.
- * `createWebSocketSource(url, { factory: () => new MockWebSocket(...) })` 로 주입해
- * 실제 서버 없이 재연결 로직까지 검증할 수 있다.
- */
+// Enough of the WebSocket surface to exercise createWebSocketSource, including its
+// reconnect path, without a server. Inject it through that source's `factory` option.
 export class MockWebSocket {
   static readonly CONNECTING = 0;
   static readonly OPEN = 1;

@@ -43,7 +43,7 @@ export const 기본: Story = {
   ),
 };
 
-/** 12만 포인트 대용량 이력 — DataZoom 으로 정밀 탐색 */
+// 120k points, navigated with DataZoom.
 export const 대용량_이력_탐색: Story = {
   args: { data: [], unit: "℃" },
   render: (args) => {
@@ -76,7 +76,7 @@ export const 대용량_이력_탐색: Story = {
   },
 };
 
-/** 타임라인 ↔ 히트맵 전환 */
+// Switching the same data between the timeline and the heatmap view.
 export const 히트맵_전환: Story = {
   args: { data: dataset.data, unit: "℃" },
   render: (args) => {
@@ -108,7 +108,7 @@ export const 히트맵_전환: Story = {
   },
 };
 
-/** 이상 지점 클릭 → 상세 패널 연동 */
+// Clicking an anomaly drives a detail panel.
 export const 이상지점_클릭: Story = {
   args: {
     data: dataset.data,

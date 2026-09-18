@@ -1,11 +1,5 @@
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-} from "react";
-import type { ForwardedRef, ReactElement } from "react";
+import { useCallback, useEffect, useImperativeHandle, useRef } from "react";
+import type { Ref } from "react";
 import { useAnimationLoop } from "../../hooks/useAnimationLoop";
 import type { FrameInfo } from "../../hooks/useAnimationLoop";
 import { useResizeObserver } from "../../hooks/useResizeObserver";
@@ -19,32 +13,34 @@ import type {
 } from "./types";
 
 const IDENTITY: Viewport = { scale: 1, offsetX: 0, offsetY: 0 };
-/** 이 픽셀 이상 움직이면 클릭이 아니라 패닝으로 간주 */
+// Past this much pointer travel the gesture is a pan, so the pointerup is not a click.
 const DRAG_THRESHOLD = 4;
 
-function Canvas2DBaseInner<TItem>(
-  {
-    onInit,
-    onDraw,
-    hitTest,
-    onItemClick,
-    onItemHover,
-    onBackgroundClick,
-    onViewportChange,
-    onResize,
-    renderMode = "loop",
-    paused = false,
-    maxFps = 60,
-    pauseWhenHidden = true,
-    interaction,
-    autoClear = true,
-    backgroundColor,
-    className,
-    style,
-    ariaLabel,
-  }: Canvas2DBaseProps<TItem>,
-  ref: ForwardedRef<Canvas2DHandle>,
-) {
+// Owns the parts a canvas view would otherwise re-implement each time: the DPR-correct
+// backing store, the rAF loop and its teardown, pointer-to-world inversion for hit
+// testing, and pan/zoom. Every listener it adds is removed on unmount, which is what
+// lets a kiosk leave one of these mounted for days.
+export const Canvas2DBase = <TItem = unknown,>({
+  ref,
+  onInit,
+  onDraw,
+  hitTest,
+  onItemClick,
+  onItemHover,
+  onBackgroundClick,
+  onViewportChange,
+  onResize,
+  renderMode = "loop",
+  paused = false,
+  maxFps = 60,
+  pauseWhenHidden = true,
+  interaction,
+  autoClear = true,
+  backgroundColor,
+  className,
+  style,
+  ariaLabel,
+}: Canvas2DBaseProps<TItem> & { ref?: Ref<Canvas2DHandle> }) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -74,7 +70,6 @@ function Canvas2DBaseInner<TItem>(
     zoomStep = 1.12,
   } = interaction ?? {};
 
-  // --- 렌더 ------------------------------------------------------------------
   const render = useCallback(
     (frame: FrameInfo) => {
       const ctx = ctxRef.current;
@@ -126,13 +121,13 @@ function Canvas2DBaseInner<TItem>(
     pauseWhenHidden,
   });
 
-  // --- 캔버스 초기화 / 크기 동기화 -------------------------------------------
   const syncCanvasSize = useCallback(
     (width: number, height: number) => {
       const canvas = canvasRef.current;
       if (!canvas || width === 0 || height === 0) return;
 
-      // 고DPI 화면(관제 대형 모니터)에서 선명도를 유지하기 위해 backing store 를 DPR 배율로 잡는다.
+      // The backing store is sized in device pixels while the element stays in CSS pixels,
+      // which is what keeps strokes sharp on the high-DPI panels these run on.
       const dpr = Math.min(window.devicePixelRatio || 1, 3);
       const nextW = Math.round(width * dpr);
       const nextH = Math.round(height * dpr);
@@ -168,17 +163,16 @@ function Canvas2DBaseInner<TItem>(
         cancelAnimationFrame(oneShotRafRef.current);
         oneShotRafRef.current = null;
       }
-      // 캔버스 backing store 해제 힌트 (Safari 에서 메모리 회수를 돕는다)
+      // Resizing to 0 is the only reliable hint that frees the backing store in Safari.
       canvas.width = 0;
       canvas.height = 0;
       ctxRef.current = null;
     };
-    // initCb/syncCanvasSize 는 안정 참조이므로 마운트 시 1회만 실행된다.
+    // initCb and syncCanvasSize are stable, so this runs once per mount.
   }, [initCb, syncCanvasSize]);
 
   useResizeObserver(rootRef, (size) => syncCanvasSize(size.width, size.height));
 
-  // --- 좌표 변환 --------------------------------------------------------------
   const toWorld = useCallback((p: Point): Point => {
     const { scale, offsetX, offsetY } = viewportRef.current;
     return { x: (p.x - offsetX) / scale, y: (p.y - offsetY) / scale };
@@ -207,7 +201,6 @@ function Canvas2DBaseInner<TItem>(
     [maxScale, minScale, renderMode, requestRedraw, viewportChangeCb],
   );
 
-  // --- 포인터 인터랙션 --------------------------------------------------------
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -304,7 +297,7 @@ function Canvas2DBaseInner<TItem>(
       );
       if (nextScale === vp.scale) return;
 
-      // 커서 지점의 월드 좌표가 고정되도록 offset 을 보정한다.
+      // Correcting the offset keeps the world point under the cursor pinned while scaling.
       const world = toWorld(p);
       setViewport({
         scale: nextScale,
@@ -345,7 +338,7 @@ function Canvas2DBaseInner<TItem>(
     zoomStep,
   ]);
 
-  // on-demand 모드에서 테마가 바뀌면 다시 그린다.
+  // on-demand draws nothing on its own, so a theme change needs an explicit frame.
   useEffect(() => {
     if (renderMode === "on-demand") requestRedraw();
   }, [theme, renderMode, requestRedraw]);
@@ -378,17 +371,4 @@ function Canvas2DBaseInner<TItem>(
       <canvas ref={canvasRef} role="img" aria-label={ariaLabel} />
     </div>
   );
-}
-
-/**
- * HTML5 Canvas 2D 기반 컴포넌트의 공통 래퍼.
- *
- * 책임
- * 1. DPR 대응 캔버스 크기 동기화 + ResizeObserver 재계산
- * 2. rAF 애니메이션 루프 관리(언마운트·백그라운드 탭에서 자동 중단)
- * 3. Hit Detection: 포인터 좌표를 월드 좌표로 역변환해 `hitTest` 에 위임
- * 4. Pan/Zoom 뷰포트 변환 및 모든 리스너의 확실한 해제
- */
-export const Canvas2DBase = forwardRef(Canvas2DBaseInner) as <TItem = unknown>(
-  props: Canvas2DBaseProps<TItem> & { ref?: ForwardedRef<Canvas2DHandle> },
-) => ReactElement;
+};

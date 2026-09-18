@@ -64,7 +64,7 @@ function useMockStream(hz: number, burst = 1): MockSensorStream | null {
   return stream;
 }
 
-/** 기본 스트리밍(20Hz) + 임계치 표시 */
+// 20Hz stream with thresholds drawn.
 export const 기본: Story = {
   args: { series: SERIES },
   render: (args) => {
@@ -88,7 +88,7 @@ export const 기본: Story = {
   },
 };
 
-/** 초당 1,000건 유입에서도 프레임이 유지되는지 확인 */
+// Checks the frame rate holds at 1,000 arrivals a second.
 export const 고주파_1000Hz: Story = {
   args: { series: SERIES },
   render: (args) => {
@@ -113,7 +113,7 @@ export const 고주파_1000Hz: Story = {
   },
 };
 
-/** 임계치 초과 시 ON_THRESHOLD_BREACH 이벤트 수신 */
+// Receiving ON_THRESHOLD_BREACH on a threshold crossing.
 export const 임계치_경고_이벤트: Story = {
   args: { series: [SERIES[0] as SeriesDescriptor] },
   render: (args) => {
@@ -173,7 +173,7 @@ export const 임계치_경고_이벤트: Story = {
   },
 };
 
-/** OEE 게이지 · LiquidFill 위젯 연동 */
+// The OEE gauge and the LiquidFill widget alongside the chart.
 export const OEE_위젯_연동: Story = {
   args: { series: SERIES },
   render: (args) => {

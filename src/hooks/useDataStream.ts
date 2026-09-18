@@ -8,11 +8,10 @@ import type {
 import { useEventCallback } from "./useEventCallback";
 
 export interface UseDataStreamOptions<T> extends DataStreamBufferOptions<T> {
-  /** 연결할 소스. 함수로 주면 마운트 시 1회 생성한다. */
+  // A function form is invoked once on mount.
   source?: StreamSource<T> | (() => StreamSource<T>) | null;
-  /** flush 될 때마다 호출. 여기서 차트에 데이터를 주입한다. */
   onFlush?: (items: T[], stats: BufferStats) => void;
-  /** 통계 상태를 리렌더로 노출할지 여부(기본 false — 불필요한 리렌더 방지) */
+  // Off by default: surfacing stats as state re-renders the subscriber on every flush.
   exposeStats?: boolean;
   enabled?: boolean;
 }
@@ -20,14 +19,11 @@ export interface UseDataStreamOptions<T> extends DataStreamBufferOptions<T> {
 export interface UseDataStreamResult<T> {
   buffer: DataStreamBuffer<T>;
   stats: BufferStats | null;
-  /** 수동 주입(테스트·리플레이용) */
   push: (item: T) => void;
 }
 
-/**
- * DataStreamBuffer 를 React 라이프사이클에 결합한다.
- * 언마운트 시 소스 구독 해제 + 버퍼 dispose 를 보장한다.
- */
+// Ties a DataStreamBuffer to the component lifecycle: the source is unsubscribed and the
+// buffer disposed on unmount.
 export function useDataStream<T>({
   source,
   onFlush,
@@ -38,7 +34,8 @@ export function useDataStream<T>({
   const flushCb = useEventCallback(onFlush);
   const [stats, setStats] = useState<BufferStats | null>(null);
 
-  // 옵션 변경으로 버퍼가 재생성되면 스트림이 끊기므로 최초 값으로 고정한다.
+  // Pinned to the first value: rebuilding the buffer would drop the connection and
+  // everything still sitting in it.
   const optionsRef = useRef(bufferOptions);
   const buffer = useMemo(() => new DataStreamBuffer<T>(optionsRef.current), []);
 

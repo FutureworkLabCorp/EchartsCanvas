@@ -4,7 +4,6 @@ import type {
   TimeRange,
 } from "../../types/domain";
 
-/** 대시보드 공통 이벤트 이름 */
 export const VizEvent = {
   EQUIPMENT_SELECT: "ON_EQUIPMENT_SELECT",
   EQUIPMENT_HOVER: "ON_EQUIPMENT_HOVER",
@@ -16,10 +15,8 @@ export const VizEvent = {
 
 export type VizEventName = (typeof VizEvent)[keyof typeof VizEvent];
 
-/**
- * 이벤트 이름 → 페이로드 타입 매핑.
- * 컴포넌트 간 계약이므로 payload 를 확장할 때는 이 맵을 먼저 수정한다.
- */
+// The cross-component contract: widen a payload here first, and the consumers fail to
+// compile until they handle it.
 export interface VizEventMap {
   ON_EQUIPMENT_SELECT: { equipment: EquipmentNode | null; source?: string };
   ON_EQUIPMENT_HOVER: { equipment: EquipmentNode | null; source?: string };

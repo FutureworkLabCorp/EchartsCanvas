@@ -27,7 +27,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** BaseChart: 컨테이너 크기를 바꿔도 ResizeObserver 로 자동 재계산된다. */
+// BaseChart: the chart follows its container through ResizeObserver.
 export const BaseChart_반응형: Story = {
   render: () => {
     const [width, setWidth] = useState(70);
@@ -94,7 +94,7 @@ interface Bubble {
   vy: number;
 }
 
-/** Canvas2DBase: 애니메이션 루프 + Hit Detection 검증 */
+// Canvas2DBase: animation loop and hit detection.
 export const Canvas2DBase_히트감지: Story = {
   render: () => {
     const bubblesRef = useRef<Bubble[]>(
@@ -154,7 +154,7 @@ export const Canvas2DBase_히트감지: Story = {
   },
 };
 
-/** DataStreamBuffer: 유입량 vs 방출량 계측 */
+// DataStreamBuffer: arrival rate against flush rate.
 export const DataStreamBuffer_처리량: Story = {
   render: () => {
     const [stats, setStats] = useState<BufferStats | null>(null);
@@ -222,7 +222,7 @@ export const DataStreamBuffer_처리량: Story = {
   },
 };
 
-/** Theme: 커스텀 테마 주입 */
+// Theme: injecting a custom theme.
 export const 커스텀_테마_주입: Story = {
   render: () => {
     const plantTheme = useMemo(

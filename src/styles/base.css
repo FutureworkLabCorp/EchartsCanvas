@@ -1,4 +1,4 @@
-/* viz-kit 공통 스타일. 테마 토큰(CSS 변수)은 ThemeProvider 가 주입한다. */
+/* Shared viz-kit styles. The --viz-* custom properties come from ThemeProvider. */
 
 .viz-chart-root {
   position: relative;

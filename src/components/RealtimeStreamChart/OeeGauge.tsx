@@ -7,9 +7,9 @@ import { clamp } from "../../core/utils/format";
 import type { OeeMetrics } from "../../types/domain";
 
 export interface OeeGaugeProps {
-  /** 가동률·성능·양품률. OEE = 세 값의 곱 */
+  // OEE is the product of the three, not their mean.
   metrics: OeeMetrics;
-  /** 주의/경고 임계(0~1). 게이지 색이 바뀐다. */
+  // 0..1
   warningBelow?: number;
   criticalBelow?: number;
   title?: string;
@@ -17,7 +17,6 @@ export interface OeeGaugeProps {
   style?: CSSProperties;
 }
 
-/** OEE(종합설비효율) 게이지. RealtimeStreamChart 와 나란히 배치하는 KPI 위젯. */
 export function OeeGauge({
   metrics,
   warningBelow = 0.75,

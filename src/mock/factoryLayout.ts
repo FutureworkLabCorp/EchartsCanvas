@@ -1,20 +1,16 @@
 import type { EquipmentStatus, FactoryLayout } from "../types/domain";
 import { createRandom } from "./random";
 
-/** 시연용 공장 도면(2개 라인 + 검사/포장 구역) */
 export function createMockFactoryLayout(): FactoryLayout {
   const equipments = [
-    // 라인 A
     { id: "PRESS-01", name: "프레스 #1", x: 80, y: 90, type: "press" },
     { id: "PRESS-02", name: "프레스 #2", x: 240, y: 90, type: "press" },
     { id: "WELD-01", name: "용접 #1", x: 400, y: 90, type: "welder" },
     { id: "WELD-02", name: "용접 #2", x: 560, y: 90, type: "welder" },
-    // 라인 B
     { id: "CNC-01", name: "CNC #1", x: 80, y: 300, type: "cnc" },
     { id: "CNC-02", name: "CNC #2", x: 240, y: 300, type: "cnc" },
     { id: "ROBOT-01", name: "로봇암 #1", x: 400, y: 300, type: "robot" },
     { id: "ROBOT-02", name: "로봇암 #2", x: 560, y: 300, type: "robot" },
-    // 검사/포장
     { id: "AOI-01", name: "AOI 검사기", x: 780, y: 150, type: "inspection" },
     { id: "PACK-01", name: "포장 #1", x: 780, y: 320, type: "packing" },
   ] as const;
@@ -104,10 +100,7 @@ export function createMockFactoryLayout(): FactoryLayout {
   };
 }
 
-/**
- * 설비 상태를 주기적으로 바꾸는 시뮬레이터.
- * 반환된 함수를 호출하면 타이머가 해제된다.
- */
+// Flips equipment status on a timer. The returned function clears it.
 export function simulateStatusChanges(
   equipmentIds: string[],
   onChange: (statuses: Record<string, EquipmentStatus>) => void,

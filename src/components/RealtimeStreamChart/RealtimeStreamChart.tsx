@@ -17,39 +17,31 @@ import type {
 } from "../../types/domain";
 
 export interface RealtimeStreamChartProps {
-  /** 표시할 시리즈 정의. key 는 SensorSample.sensorId 와 매칭된다. */
+  // Each key matches a SensorSample.sensorId.
   series: SeriesDescriptor[];
-  /** 스트림 소스(WebSocket/SSE/Mock). 함수로 주면 마운트 시 1회만 생성한다. */
+  // A function form is invoked once on mount.
   source?:
-    | StreamSource<SensorSample>
-    | (() => StreamSource<SensorSample>)
-    | null;
-  /** 시리즈별 유지 포인트 수(기본 600). 초과분은 링버퍼에서 자동 폐기된다. */
+    StreamSource<SensorSample> | (() => StreamSource<SensorSample>) | null;
+  // Per series. The ring buffer drops the oldest past this.
   windowSize?: number;
-  /** 버퍼 flush 주기(ms). 값이 클수록 CPU 사용량이 낮아진다. */
   flushInterval?: number;
-  /** 임계치. 초과 구간은 visualMap 으로 색이 바뀌고 ON_THRESHOLD_BREACH 가 발행된다. */
+  // Drives both the visualMap colouring and the ON_THRESHOLD_BREACH event.
   thresholds?: ThresholdConfig;
-  /** 지정 시 해당 설비의 샘플만 수집한다(설비 선택 연동). */
+  // Filters intake, so selecting equipment elsewhere narrows this chart.
   equipmentId?: string | null;
-  /** true 면 유입은 계속 버퍼링하되 차트 갱신을 멈춘다. */
+  // Keeps buffering while paused, so resuming shows the gap rather than losing it.
   paused?: boolean;
   yAxis?: { min?: number; max?: number; name?: string };
-  /** 초기 데이터(이력 프리로드) */
   initialData?: SensorSample[];
   showLegend?: boolean;
   className?: string;
   style?: CSSProperties;
 }
 
-/**
- * 실시간 스트리밍 모니터링 차트.
- *
- * 성능 설계
- * - 수신 → `DataStreamBuffer`(throttle) → 링버퍼 → `setOption` 을 flush 주기당 1회만 수행한다.
- * - 데이터는 React state 가 아닌 ref(RingBuffer)에 보관해 초당 수백 건 유입에도 리렌더가 발생하지 않는다.
- * - `sampling: 'lttb'` 로 포인트 수가 픽셀 수를 넘어도 렌더 비용이 선형으로 늘지 않는다.
- */
+// Samples land in a ring buffer held in a ref, never in state, so several hundred
+// arrivals a second cause no re-render. A throttled DataStreamBuffer then drives one
+// setOption per flush, and `sampling: 'lttb'` keeps the draw cost flat once the point
+// count passes the pixel width.
 export function RealtimeStreamChart({
   series,
   source,
@@ -71,12 +63,11 @@ export function RealtimeStreamChart({
   pausedRef.current = paused;
   const equipmentRef = useRef(equipmentId);
   equipmentRef.current = equipmentId;
-  /** 임계치 재진입 시에만 이벤트를 발행하기 위한 직전 레벨 기록 */
+  // Previous level per sensor, so an event fires on a transition rather than per sample.
   const breachLevelRef = useRef(
     new Map<string, "normal" | "warning" | "critical">(),
   );
 
-  // 시리즈 구성이 바뀌면 링버퍼를 재구성한다.
   useEffect(() => {
     const next = new Map<string, RingBuffer<TimeValuePoint>>();
     for (const descriptor of series) {
@@ -104,7 +95,8 @@ export function RealtimeStreamChart({
     const chart = chartRef.current?.getInstance();
     if (!chart || chart.isDisposed() || pausedRef.current) return;
 
-    // notMerge 없이 id 매칭으로 data 만 교체한다 → 축·툴팁 등 재계산 최소화
+    // Matching by id and replacing only `data`: a notMerge update would rebuild the
+    // axes and tooltip on every flush.
     chart.setOption(
       {
         series: series.map((descriptor) => ({
@@ -127,14 +119,12 @@ export function RealtimeStreamChart({
     },
   });
 
-  // 이력 프리로드
   useEffect(() => {
     if (!initialData?.length) return;
     for (const sample of initialData) pushSample(sample);
     applyToChart();
   }, [initialData, pushSample, applyToChart]);
 
-  // 일시정지 해제 시 밀린 데이터를 즉시 반영
   useEffect(() => {
     if (!paused) applyToChart();
   }, [paused, applyToChart]);
@@ -145,7 +135,8 @@ export function RealtimeStreamChart({
     const warning = thresholds?.warning;
 
     return {
-      animation: false, // 실시간 갱신에서는 전환 애니메이션이 프레임 예산을 잡아먹는다
+      // A transition is still running when the next flush lands, so it only costs frames.
+      animation: false,
       grid: { left: 8, right: 16, top: 16, bottom: 8, containLabel: true },
       legend: showLegend
         ? {
@@ -159,7 +150,7 @@ export function RealtimeStreamChart({
       tooltip: {
         trigger: "axis",
         axisPointer: { type: "line" },
-        // 마우스 이동마다 DOM 을 갱신하지 않도록 지연을 준다
+        // Without this the tooltip rebuilds its DOM on every pointer move.
         showDelay: 0,
         hideDelay: 60,
         transitionDuration: 0,
@@ -177,7 +168,7 @@ export function RealtimeStreamChart({
         max: yAxis?.max,
         scale: yAxis?.min === undefined && yAxis?.max === undefined,
       },
-      // 임계치 구간 색상 매핑: 값 자체를 기준으로 선 색을 바꾼다.
+      // Colours the line by its own y value, so a breach is visible without a separate series.
       ...(critical !== undefined || warning !== undefined
         ? {
             visualMap: {
@@ -270,21 +261,22 @@ export function RealtimeStreamChart({
     <BaseChart
       ref={chartRef}
       option={option}
-      // 시리즈 정의가 바뀔 때는 이전 시리즈를 남기지 않는다.
+      // Dropping a series from the props has to drop it from the chart too.
       notMerge
       className={className}
       style={style}
       ariaLabel="실시간 센서 스트리밍 차트"
       onReady={() => {
         applyToChart();
-        // 외부에서 수동 주입할 수 있도록 push 를 노출(리플레이·테스트용)
+        // Exposed so a replay or a test can feed samples without a source.
         void push;
       }}
     />
   );
 }
 
-/** 임계치 상태가 바뀌는 순간에만 이벤트를 발행한다(매 샘플 발행 시 이벤트 폭주). */
+// Fires on a level change only. Emitting per breaching sample floods listeners at the
+// exact moment something is wrong.
 function detectBreach(
   sample: SensorSample,
   thresholds: ThresholdConfig | undefined,

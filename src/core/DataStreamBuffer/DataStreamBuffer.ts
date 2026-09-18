@@ -7,21 +7,9 @@ import type {
   StreamSource,
 } from "./types";
 
-/**
- * 고주파 스트림(WebSocket/SSE)과 렌더러 사이의 완충 파이프라인.
- *
- * 문제: 센서가 초당 수백~수천 건을 보내는데 그때마다 setOption 을 호출하면
- * 메인 스레드가 렌더에 묶여 프레임이 무너진다.
- * 해결: 수신은 O(1) 로 버퍼에 적재만 하고, 방출은 일정 주기(또는 배치 단위)로 묶어서 한 번만 수행한다.
- *
- * ```ts
- * const buffer = new DataStreamBuffer<Sample>({ interval: 200, capacity: 5000 });
- * const off = buffer.subscribe((items) => chart.appendSamples(items));
- * const disconnect = buffer.connect(createWebSocketSource(url));
- * // 정리
- * off(); disconnect(); buffer.dispose();
- * ```
- */
+// Decouples arrival rate from repaint rate. A sensor sending hundreds to thousands of
+// samples a second would pin the main thread if each one triggered a repaint, so intake
+// is O(1) into the buffer and emission happens once per interval or per batch.
 export class DataStreamBuffer<T> {
   private buffer: T[] = [];
   private listeners = new Set<BufferListener<T>>();
@@ -90,8 +78,6 @@ export class DataStreamBuffer<T> {
     if (autoStart) this.start();
   }
 
-  // --- 입력 -----------------------------------------------------------------
-
   push(item: T): void {
     if (this.disposed) return;
     this.enqueue(item);
@@ -104,7 +90,7 @@ export class DataStreamBuffer<T> {
     this.afterEnqueue();
   }
 
-  /** 스트림 소스를 연결한다. 반환된 함수를 호출하면 구독이 해제된다. */
+  // Returns its own disconnect.
   connect(source: StreamSource<T>): () => void {
     const unsubscribe = source.subscribe((item) => this.push(item));
     const cleanup = () => {
@@ -116,8 +102,6 @@ export class DataStreamBuffer<T> {
     return cleanup;
   }
 
-  // --- 출력 -----------------------------------------------------------------
-
   subscribe(listener: BufferListener<T>): () => void {
     this.listeners.add(listener);
     return () => {
@@ -125,7 +109,7 @@ export class DataStreamBuffer<T> {
     };
   }
 
-  /** 즉시 방출한다. 버퍼가 비어 있으면 아무 일도 하지 않는다(force=true 면 빈 배열도 통지). */
+  // A no-op on an empty buffer unless forced, which notifies with an empty array.
   flush(force = false): void {
     if (this.disposed) return;
     if (this.buffer.length === 0 && !force) return;
@@ -142,13 +126,11 @@ export class DataStreamBuffer<T> {
       try {
         listener(payload, this.getStats());
       } catch (error) {
-        // 구독자 하나의 예외가 파이프라인 전체를 죽이지 않도록 격리한다.
+        // One listener throwing must not stop the rest from being notified.
         console.error("[DataStreamBuffer] listener error", error);
       }
     }
   }
-
-  // --- 제어 -----------------------------------------------------------------
 
   start(): void {
     if (this.disposed || this.running) return;
@@ -166,7 +148,8 @@ export class DataStreamBuffer<T> {
     this.stats.bufferSize = 0;
   }
 
-  /** 모든 타이머·구독·소스를 해제한다. 언마운트 시 반드시 호출한다. */
+  // Releases timers, listeners and the source. Nothing else does, so an unmount that
+  // skips this leaks the stream for the life of the page.
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
@@ -192,11 +175,9 @@ export class DataStreamBuffer<T> {
     return this.buffer.length;
   }
 
-  // --- 내부 -----------------------------------------------------------------
-
   private enqueue(item: T): void {
     if (this.buffer.length >= this.capacity) {
-      // 링버퍼처럼 동작: 오래된 값을 버려 메모리 상한을 지킨다.
+      // Bounded like a ring buffer: something has to be discarded to hold the cap.
       if (this.overflow === "drop-oldest") this.buffer.shift();
       else {
         this.stats.dropped += 1;
@@ -260,7 +241,7 @@ export class DataStreamBuffer<T> {
     if (!this.running || this.disposed) return;
     this.lastTickAt = Date.now();
     this.flush();
-    // debounce 는 push 가 다시 예약하므로 여기서는 재예약하지 않는다.
+    // debounce reschedules from push, so rescheduling here would emit twice.
     if (this.mode === "throttle") this.scheduleTick();
   }
 
@@ -275,7 +256,6 @@ export class DataStreamBuffer<T> {
     }
   }
 
-  /** 디버깅용: 마지막 tick 시각 */
   get lastTick(): number {
     return this.lastTickAt;
   }

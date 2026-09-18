@@ -4,7 +4,7 @@ import { lttb, minMaxDownsample } from "./downsample";
 import { EventBus } from "../EventBus/EventBus";
 
 describe("RingBuffer", () => {
-  it("capacity 를 넘으면 가장 오래된 값을 밀어낸다", () => {
+  it("drops the oldest value once capacity is exceeded", () => {
     const ring = new RingBuffer<number>(3);
     ring.pushMany([1, 2, 3, 4, 5]);
 
@@ -14,7 +14,7 @@ describe("RingBuffer", () => {
     expect(ring.isFull).toBe(true);
   });
 
-  it("clear 후 상태가 초기화된다", () => {
+  it("resets to empty after clear", () => {
     const ring = new RingBuffer<number>(2);
     ring.pushMany([1, 2]);
     ring.clear();
@@ -29,7 +29,7 @@ describe("downsample", () => {
     Math.sin(i / 20) * 10,
   ]);
 
-  it("lttb 는 목표 개수로 줄이고 양 끝점을 유지한다", () => {
+  it("reduces to the target count while keeping both endpoints", () => {
     const result = lttb(
       data,
       100,
@@ -41,7 +41,7 @@ describe("downsample", () => {
     expect(result[result.length - 1]).toEqual(data[data.length - 1]);
   });
 
-  it("threshold 가 원본보다 크면 원본을 그대로 반환한다", () => {
+  it("returns the input untouched when the threshold exceeds its length", () => {
     const result = lttb(
       data,
       5000,
@@ -51,7 +51,7 @@ describe("downsample", () => {
     expect(result).toHaveLength(data.length);
   });
 
-  it("minMaxDownsample 은 극값을 보존한다", () => {
+  it("keeps a single-sample spike", () => {
     const spiky: Array<[number, number]> = Array.from(
       { length: 500 },
       (_, i) => [i, i === 250 ? 999 : 1],
@@ -62,7 +62,7 @@ describe("downsample", () => {
 });
 
 describe("EventBus", () => {
-  it("emit 된 페이로드를 구독자에게 전달하고 off 로 해제한다", () => {
+  it("delivers a payload to subscribers and stops after off", () => {
     const bus = new EventBus<{ ping: { count: number } }>();
     const received: number[] = [];
     const off = bus.on("ping", (payload) => received.push(payload.count));
@@ -75,7 +75,7 @@ describe("EventBus", () => {
     expect(bus.listenerCount("ping")).toBe(0);
   });
 
-  it("once 는 1회만 수신한다", () => {
+  it("delivers to a once listener exactly once", () => {
     const bus = new EventBus<{ ping: number }>();
     const received: number[] = [];
     bus.once("ping", (value) => received.push(value));
@@ -86,7 +86,7 @@ describe("EventBus", () => {
     expect(received).toEqual([1]);
   });
 
-  it("구독자 예외가 다른 구독자에게 전파되지 않는다", () => {
+  it("isolates a throwing listener from the rest", () => {
     const bus = new EventBus<{ ping: number }>();
     const ok = [] as number[];
     bus.on("ping", () => {

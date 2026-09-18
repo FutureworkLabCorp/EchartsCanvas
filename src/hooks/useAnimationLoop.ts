@@ -2,20 +2,19 @@ import { useEffect, useRef } from "react";
 import { useEventCallback } from "./useEventCallback";
 
 export interface FrameInfo {
-  /** 루프 시작 이후 경과 시간(ms) */
+  // ms since the loop started.
   elapsed: number;
-  /** 직전 프레임과의 간격(ms) */
+  // ms since the previous frame.
   delta: number;
-  /** 누적 프레임 수 */
   frame: number;
 }
 
 export interface UseAnimationLoopOptions {
-  /** false 면 루프를 정지한다(기본 true) */
   running?: boolean;
-  /** 상한 FPS. 0/undefined 면 디스플레이 주사율을 따른다 */
+  // 0 or unset follows the display refresh rate.
   maxFps?: number;
-  /** 탭이 백그라운드일 때 루프를 멈춘다(기본 true). 24시간 구동 시 CPU/GPU 절약 */
+  // Stopping while hidden matters on a screen left running for days: the loop would
+  // otherwise keep burning CPU and GPU drawing frames nobody sees.
   pauseWhenHidden?: boolean;
 }
 
@@ -25,10 +24,8 @@ export interface AnimationLoopHandle {
   isRunning: () => boolean;
 }
 
-/**
- * requestAnimationFrame 루프를 라이프사이클에 안전하게 묶는다.
- * 언마운트·정지 시 rAF 를 반드시 cancel 하며, visibilitychange 로 백그라운드 프레임을 중단한다.
- */
+// Binds a requestAnimationFrame loop to the component lifecycle: cancelled on unmount
+// and on stop, and suspended through visibilitychange while the tab is hidden.
 export function useAnimationLoop(
   callback: (info: FrameInfo) => void,
   {

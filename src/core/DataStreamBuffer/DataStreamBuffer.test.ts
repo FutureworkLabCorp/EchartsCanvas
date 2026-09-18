@@ -4,7 +4,8 @@ import { DataStreamBuffer } from "./DataStreamBuffer";
 describe("DataStreamBuffer", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    // rAF 정렬은 타이머 테스트에서 비결정적이므로 즉시 실행으로 대체한다.
+    // Running the callback inline: real rAF never fires under fake timers, so a
+    // frame-aligned flush would simply never happen here.
     vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
       cb(0);
       return 1;
@@ -17,7 +18,7 @@ describe("DataStreamBuffer", () => {
     vi.unstubAllGlobals();
   });
 
-  it("throttle 모드에서 유입 건수와 무관하게 주기당 1회만 방출한다", () => {
+  it("flushes once per interval no matter how many items arrived", () => {
     const buffer = new DataStreamBuffer<number>({
       interval: 100,
       mode: "throttle",
@@ -35,7 +36,7 @@ describe("DataStreamBuffer", () => {
     buffer.dispose();
   });
 
-  it("capacity 초과 시 오래된 데이터를 폐기한다", () => {
+  it("discards the oldest items past capacity", () => {
     const buffer = new DataStreamBuffer<number>({ interval: 50, capacity: 10 });
     const listener = vi.fn();
     buffer.subscribe(listener);
@@ -51,7 +52,7 @@ describe("DataStreamBuffer", () => {
     buffer.dispose();
   });
 
-  it("batch 모드는 batchSize 도달 즉시 방출한다", () => {
+  it("flushes as soon as batch mode reaches batchSize", () => {
     const buffer = new DataStreamBuffer<number>({
       mode: "batch",
       batchSize: 5,
@@ -68,7 +69,7 @@ describe("DataStreamBuffer", () => {
     buffer.dispose();
   });
 
-  it("transform 으로 방출 직전 데이터를 가공한다", () => {
+  it("runs transform on the items just before they are emitted", () => {
     const buffer = new DataStreamBuffer<number>({
       interval: 50,
       transform: (items) => items.filter((value) => value % 2 === 0),
@@ -83,7 +84,7 @@ describe("DataStreamBuffer", () => {
     buffer.dispose();
   });
 
-  it("dispose 후에는 타이머와 구독이 모두 해제된다", () => {
+  it("releases timers and subscriptions on dispose", () => {
     const buffer = new DataStreamBuffer<number>({ interval: 50 });
     const listener = vi.fn();
     buffer.subscribe(listener);
@@ -96,7 +97,7 @@ describe("DataStreamBuffer", () => {
     expect(buffer.isDisposed()).toBe(true);
   });
 
-  it("connect 로 연결한 소스는 반환 함수로 구독 해제된다", () => {
+  it("unsubscribes a connected source through the returned function", () => {
     const buffer = new DataStreamBuffer<number>({ interval: 50 });
     const listener = vi.fn();
     buffer.subscribe(listener);

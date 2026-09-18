@@ -1,11 +1,10 @@
-/**
- * ECharts 코어 등록 지점.
- *
- * 전체 `echarts` 번들을 import 하지 않고 필요한 차트/컴포넌트/렌더러만 등록한다.
- * - 렌더러는 Canvas 로 고정한다(대용량 실시간 데이터에서 SVG 대비 유리).
- * - 라이브러리 전체가 **이 모듈이 export 하는 단일 echarts 인스턴스**만 사용해야 한다.
- *   (`echarts` 와 `echarts/core` 를 혼용하면 인스턴스가 두 벌 생성되어 테마/등록이 깨진다.)
- */
+// Registers only the charts, components and renderer this library uses, so the full
+// ECharts bundle never reaches a consumer. Canvas is the only renderer registered:
+// SVG loses to it well before the point counts these charts carry.
+//
+// Everything must import the instance this module exports. Mixing it with a bare
+// `echarts` import builds a second instance, and themes registered on one are
+// invisible to the other.
 import * as echarts from "echarts/core";
 
 import {

@@ -43,10 +43,7 @@ export function hitPolygon(p: Point, points: readonly Point[]): boolean {
   return inside;
 }
 
-/**
- * 객체 목록에서 히트되는 대상을 찾는다.
- * 겹친 객체가 있으면 나중에 그려진(=위에 있는) 것이 우선하도록 역순 탐색한다.
- */
+// Walks backwards so the last-drawn object, the one visually on top, wins an overlap.
 export function pickTopMost<T>(
   items: readonly T[],
   test: (item: T) => boolean,
@@ -58,7 +55,6 @@ export function pickTopMost<T>(
   return null;
 }
 
-/** 도면 전체(world 크기)를 컨테이너에 맞추는 viewport 계산 */
 export function fitToViewport(
   content: { width: number; height: number },
   container: { width: number; height: number },

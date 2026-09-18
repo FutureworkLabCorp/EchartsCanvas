@@ -1,12 +1,12 @@
-import React from 'react';
-import type { Decorator, Preview } from '@storybook/react-vite';
-import { ThemeProvider } from '../src/theme/ThemeProvider';
-import { industrialDark, industrialLight } from '../src/theme/presets';
-import '../src/styles/base.css';
+import React from "react";
+import type { Decorator, Preview } from "@storybook/react-vite";
+import { ThemeProvider } from "../src/theme/ThemeProvider";
+import { industrialDark, industrialLight } from "../src/theme/presets";
+import "../src/styles/base.css";
 
 const withTheme: Decorator = (Story, context) => {
-  const themeName = context.globals['theme'] as string;
-  const theme = themeName === 'light' ? industrialLight : industrialDark;
+  const themeName = context.globals["theme"] as string;
+  const theme = themeName === "light" ? industrialLight : industrialDark;
 
   return (
     <ThemeProvider theme={theme}>
@@ -15,7 +15,7 @@ const withTheme: Decorator = (Story, context) => {
           background: theme.palette.background,
           color: theme.palette.textPrimary,
           padding: 16,
-          minHeight: '100vh',
+          minHeight: "100vh",
           fontFamily: theme.font.family,
         }}
       >
@@ -27,20 +27,20 @@ const withTheme: Decorator = (Story, context) => {
 
 const preview: Preview = {
   parameters: {
-    layout: 'fullscreen',
+    layout: "fullscreen",
     controls: { expanded: true },
     backgrounds: { disable: true },
   },
   globalTypes: {
     theme: {
-      description: 'Visualization theme',
-      defaultValue: 'dark',
+      description: "Visualization theme",
+      defaultValue: "dark",
       toolbar: {
-        title: 'Theme',
-        icon: 'circlehollow',
+        title: "Theme",
+        icon: "circlehollow",
         items: [
-          { value: 'dark', title: 'Industrial Dark' },
-          { value: 'light', title: 'Industrial Light' },
+          { value: "dark", title: "Industrial Dark" },
+          { value: "light", title: "Industrial Light" },
         ],
         dynamicTitle: true,
       },

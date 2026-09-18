@@ -98,7 +98,7 @@ function Dashboard({
     return () => instance.close?.();
   }, []);
 
-  // 다른 컴포넌트가 발행한 이벤트를 이벤트 버스로 수신 (컴포넌트 간 직접 의존 없음)
+  // Read off the bus, so this panel never imports the component that emitted it.
   useVizEvent(VizEvent.THRESHOLD_BREACH, (payload) => {
     setAlerts((prev) =>
       [

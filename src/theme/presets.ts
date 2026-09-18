@@ -11,10 +11,8 @@ const font = {
   sizeLg: 18,
 } as const;
 
-/**
- * 관제센터/현장 키오스크 기본 테마.
- * 저조도 환경에서 장시간 응시해도 눈부심이 적도록 채도를 낮춘 배경 + 고채도 상태색 조합.
- */
+// Control room and shop-floor kiosk default. Desaturated surfaces against saturated
+// status colours, so an operator staring at it for a shift still reads status at a glance.
 export const industrialDark: VizTheme = {
   name: "industrial-dark",
   dark: true,
@@ -66,7 +64,6 @@ export const industrialDark: VizTheme = {
   },
 };
 
-/** 사무실/보고서 화면용 라이트 테마 */
 export const industrialLight: VizTheme = {
   name: "industrial-light",
   dark: false,
@@ -118,16 +115,8 @@ export const industrialLight: VizTheme = {
   },
 };
 
-/**
- * 프리셋을 부분 덮어써 커스텀 테마를 생성한다.
- *
- * ```ts
- * const factoryTheme = createTheme(industrialDark, {
- *   name: 'plant-a',
- *   palette: { accent: '#ff922b', status: { critical: '#f03e3e' } },
- * });
- * ```
- */
+// `status` is merged key by key rather than replaced, so an override naming one status
+// does not wipe the other five.
 export function createTheme(
   base: VizTheme,
   override: VizThemeOverride,

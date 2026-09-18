@@ -6,7 +6,7 @@ export function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
-/** HH:mm:ss (24시간 관제 화면 기준) */
+// 24-hour, since a control room screen has no room for an am/pm marker.
 export function formatTime(timestamp: number, withMillis = false): string {
   const d = new Date(timestamp);
   const pad = (n: number, len = 2) => String(n).padStart(len, "0");

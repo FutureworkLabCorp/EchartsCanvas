@@ -13,7 +13,8 @@ export interface PanelProps {
   bodyStyle?: CSSProperties;
 }
 
-/** 차트를 감싸는 공통 카드 레이아웃. 헤더/본문 영역 높이를 고정해 차트 resize 를 안정화한다. */
+// The header and body heights are fixed so a chart inside never sees its container
+// resize as its own content changes, which would feed back into another resize.
 export function Panel({
   title,
   subtitle,

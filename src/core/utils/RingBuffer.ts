@@ -1,8 +1,5 @@
-/**
- * 고정 길이 순환 버퍼.
- * 실시간 차트의 "최근 N개 윈도우"를 배열 shift 없이 O(1) 로 유지하기 위해 사용한다.
- * (Array.shift 는 O(n) 이라 초당 수천 건 유입 시 GC/CPU 부담이 커진다.)
- */
+// Holds a trailing window in O(1). The obvious push/shift pair was rejected because
+// Array.shift is O(n), which shows up as GC pressure at thousands of samples a second.
 export class RingBuffer<T> {
   private items: (T | undefined)[];
   private head = 0;
@@ -41,7 +38,7 @@ export class RingBuffer<T> {
     return this.at(this.count - 1);
   }
 
-  /** 오래된 것 → 최신 순서의 일반 배열로 복사한다(차트 주입용). */
+  // Oldest to newest, which is the order a chart series expects.
   toArray(): T[] {
     const out: T[] = new Array(this.count);
     for (let i = 0; i < this.count; i += 1) {

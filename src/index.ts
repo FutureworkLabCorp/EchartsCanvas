@@ -1,9 +1,5 @@
-/**
- * @ax/viz-kit — 제조 AX 실시간 대용량 시각화 공통 컴포넌트 프레임워크
- *
- * 공개 API 는 이 파일을 통해서만 노출한다.
- * 내부 구현(각 모듈의 상세 파일)에 직접 의존하는 코드는 만들지 않는다.
- */
+// The whole public surface. Consumers import from here and never from a path inside
+// the package, so internal files stay free to move.
 
 import "./styles/base.css";
 
@@ -157,7 +153,6 @@ export type {
   FactoryLayout,
 } from "./types/domain";
 
-// --- Mock (개발/테스트용) -----------------------------------------------------
 export {
   createMockSensorStream,
   MockWebSocket,

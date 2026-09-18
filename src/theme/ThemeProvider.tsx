@@ -6,7 +6,6 @@ import type { StatusKey, VizTheme } from "./types";
 
 interface ThemeContextValue {
   theme: VizTheme;
-  /** ECharts init 에 넘길 등록된 테마 이름 */
   echartsThemeName: string;
 }
 
@@ -15,10 +14,8 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 export interface ThemeProviderProps {
   theme?: VizTheme;
   children: ReactNode;
-  /**
-   * true 이면 자식 요소를 감싸는 div 에 CSS 변수(--viz-*)를 주입한다.
-   * 차트 외 UI(카드, 범례 등)에서 동일 토큰을 쓰기 위한 장치.
-   */
+  // Publishes the palette as --viz-* custom properties on the wrapper, so non-chart
+  // UI around the charts can reach the same values from CSS.
   injectCssVariables?: boolean;
   className?: string;
   style?: CSSProperties;
@@ -31,12 +28,12 @@ export function ThemeProvider({
   className,
   style,
 }: ThemeProviderProps) {
-  // 테마 객체가 바뀔 때마다 ECharts 레지스트리에 (재)등록한다.
   useEffect(() => {
     registerVizTheme(theme);
   }, [theme]);
 
-  // 최초 렌더에서 BaseChart 가 init 하기 전에 등록이 끝나야 하므로 동기 등록도 수행.
+  // Also registered during render: a child BaseChart calls echarts.init in its own
+  // layout effect, which runs before this component's effect.
   useMemo(() => registerVizTheme(theme), [theme]);
 
   const value = useMemo<ThemeContextValue>(
@@ -63,7 +60,7 @@ export function ThemeProvider({
   );
 }
 
-/** Provider 가 없으면 기본 다크 테마로 폴백한다(단독 사용 가능). */
+// Falls back to the dark preset so a component works without a Provider above it.
 export function useVizTheme(): VizTheme {
   return useContext(ThemeContext)?.theme ?? industrialDark;
 }
@@ -72,7 +69,7 @@ export function useEChartsThemeName(): string {
   return useContext(ThemeContext)?.echartsThemeName ?? industrialDark.name;
 }
 
-/** 상태 코드 → 색상. 미정의 상태는 offline 색으로 폴백. */
+// An unknown status reads as offline rather than throwing or rendering colourless.
 export function useStatusColor(): (status: StatusKey | string) => string {
   const theme = useVizTheme();
   return (status) =>

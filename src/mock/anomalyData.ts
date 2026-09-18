@@ -7,15 +7,11 @@ import type {
 import { createRandom, gaussian } from "./random";
 
 export interface MockAnomalyOptions {
-  /** 생성할 포인트 수(기본 5000 — 대용량 DataZoom 탐색 시연용) */
   count?: number;
-  /** 샘플 간격(ms) */
   intervalMs?: number;
-  /** 종료 시각(기본 now) */
   endTime?: number;
   base?: number;
   seed?: number;
-  /** 삽입할 이상 구간 수 */
   anomalyCount?: number;
 }
 
@@ -26,10 +22,8 @@ export interface MockAnomalyDataset {
   markRanges: TimeRange[];
 }
 
-/**
- * AI 이상 탐지 시연용 데이터셋.
- * 정상 구간에서는 예측 밴드 안에 머물다가, 이상 구간에서 밴드를 벗어나도록 생성한다.
- */
+// Stays inside the prediction band except within the injected windows, so the band and
+// the anomaly markers have something to disagree about.
 export function createMockAnomalyDataset({
   count = 5000,
   intervalMs = 30_000,
@@ -41,7 +35,7 @@ export function createMockAnomalyDataset({
   const random = createRandom(seed);
   const startTime = endTime - count * intervalMs;
 
-  // 이상 구간 위치를 미리 정한다(전체의 앞/뒤 5% 는 제외).
+  // Kept clear of the first and last 5%, where a DataZoom window would clip them.
   const anomalyWindows = Array.from({ length: anomalyCount }, (_, i) => {
     const center = Math.floor(count * (0.1 + (0.8 * (i + 0.5)) / anomalyCount));
     const width = 6 + Math.floor(random() * 18);
@@ -68,7 +62,7 @@ export function createMockAnomalyDataset({
 
   for (let i = 0; i < count; i += 1) {
     const time = startTime + i * intervalMs;
-    // 일 주기(2π/2880 ≈ 24시간 @30초 간격) + 완만한 추세
+    // A daily cycle: 2880 samples is 24h at the 30s default interval.
     const seasonal = Math.sin((i / 2880) * Math.PI * 2) * 6;
     const trend = (i / count) * 3;
     const predicted = base + seasonal + trend;
@@ -84,7 +78,7 @@ export function createMockAnomalyDataset({
     );
     data.push([time, value]);
 
-    // 밴드는 렌더 비용을 줄이기 위해 10포인트마다 기록
+    // Every tenth point: the band is a smooth envelope and does not need full density.
     if (i % 10 === 0) {
       predictionBand.push({
         time,
@@ -94,7 +88,7 @@ export function createMockAnomalyDataset({
       });
     }
 
-    // 각 이상 구간의 피크 1점만 마킹
+    // One marker per window; marking every breaching sample would bury the plot.
     if (window && i === Math.round((window.start + window.end) / 2)) {
       anomalies.push({
         time,

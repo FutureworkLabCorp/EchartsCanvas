@@ -20,10 +20,8 @@ import type {
   VisualMapComponentOption,
 } from "echarts/components";
 
-/**
- * 이 프레임워크에서 사용 가능한 옵션만 허용하는 엄격 타입.
- * 등록하지 않은 series 를 실수로 사용하면 컴파일 타임에 막힌다.
- */
+// Narrowed to what core/echarts actually registers, so reaching for an unregistered
+// series fails to compile instead of rendering nothing at runtime.
 export type VizEChartsOption = ComposeOption<
   | LineSeriesOption
   | ScatterSeriesOption
