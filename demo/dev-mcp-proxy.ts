@@ -17,8 +17,14 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 export interface McpProxyEnv {
   apiTarget: string;
   mcpTarget: string;
+  // Used when no accessToken is supplied. An account created through Google has no
+  // password set, and the backend answers that with the same "Invalid email or password"
+  // as a wrong one, so pasting a token is the way in for such an account.
   email: string;
   password: string;
+  // Skips the password step. Read from a signed-in browser session; it expires, and the
+  // middleware reports that rather than silently falling back.
+  accessToken: string;
   orgUuid: string;
 }
 
@@ -51,7 +57,9 @@ const readToken = (payload: unknown): string => {
   return typeof inner === "string" ? inner : "";
 };
 
-const login = async (env: McpProxyEnv): Promise<Session> => {
+const acquireAccessToken = async (env: McpProxyEnv): Promise<string> => {
+  if (env.accessToken) return env.accessToken;
+
   const loginResponse = await fetch(
     `${env.apiTarget}/api/v1/user/auth/password`,
     {
@@ -61,12 +69,20 @@ const login = async (env: McpProxyEnv): Promise<Session> => {
     },
   );
   if (!loginResponse.ok) {
-    throw new Error(
-      `login failed: ${loginResponse.status} ${await loginResponse.text()}`,
-    );
+    const detail = await loginResponse.text();
+    const hint =
+      loginResponse.status === 401
+        ? " (an account created through Google has no password; set MCP_DEMO_ACCESS_TOKEN instead)"
+        : "";
+    throw new Error(`login failed: ${loginResponse.status} ${detail}${hint}`);
   }
-  const accessToken = readToken(await loginResponse.json());
-  if (!accessToken) throw new Error("login returned no access token");
+  const token = readToken(await loginResponse.json());
+  if (!token) throw new Error("login returned no access token");
+  return token;
+};
+
+const login = async (env: McpProxyEnv): Promise<Session> => {
+  const accessToken = await acquireAccessToken(env);
 
   const auth = { Authorization: `Bearer ${accessToken}` };
 
@@ -142,13 +158,13 @@ export const createMcpMiddleware = (env: McpProxyEnv) => {
       return;
     }
 
-    if (!env.email || !env.password) {
+    if (!env.accessToken && !(env.email && env.password)) {
       res.statusCode = 501;
       res.setHeader("Content-Type", "application/json");
       res.end(
         JSON.stringify({
           detail:
-            "MCP_DEMO_EMAIL / MCP_DEMO_PASSWORD are not set; add them to .env.local",
+            "Set MCP_DEMO_ACCESS_TOKEN, or MCP_DEMO_EMAIL and MCP_DEMO_PASSWORD, in .env.local",
         }),
       );
       return;
@@ -162,6 +178,17 @@ export const createMcpMiddleware = (env: McpProxyEnv) => {
       // A cached session outlives its token, and the only way to find out is to be
       // refused, so one refusal buys exactly one fresh login and retry.
       if (upstream.status === 401 || upstream.status === 403) {
+        if (env.accessToken) {
+          res.statusCode = 401;
+          res.setHeader("Content-Type", "application/json");
+          res.end(
+            JSON.stringify({
+              detail:
+                "MCP_DEMO_ACCESS_TOKEN was rejected; it has most likely expired, so copy a fresh one",
+            }),
+          );
+          return;
+        }
         current = await ensureSession(true);
         upstream = await forward(path, body, current);
       }

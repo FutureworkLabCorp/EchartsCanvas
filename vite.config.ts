@@ -39,6 +39,7 @@ export default defineConfig(({ command, mode }) => ({
             mcpTarget:
               env.VITE_MCP_API_PROXY_TARGET ??
               "https://ncpapidev.linkbrain.ai.kr",
+            accessToken: env.MCP_DEMO_ACCESS_TOKEN ?? "",
             email: env.MCP_DEMO_EMAIL ?? "",
             password: env.MCP_DEMO_PASSWORD ?? "",
             orgUuid: env.MCP_DEMO_ORG_UUID ?? "",
