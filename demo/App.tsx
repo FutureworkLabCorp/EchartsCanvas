@@ -31,6 +31,7 @@ import {
   koThresholdLabels,
   koToolboxLabels,
 } from "../src/mock/labels";
+import { KnowledgeGraphDemo } from "./KnowledgeGraphDemo";
 
 const layout = createMockFactoryLayout();
 const anomalyDataset = createMockAnomalyDataset({
@@ -44,18 +45,48 @@ const SERIES: SeriesDescriptor[] = [
   { key: "load", name: "부하", unit: "%" },
 ];
 
-export function App() {
+type DemoView = "dashboard" | "graph";
+
+export const App = () => {
   const [dark, setDark] = useState(true);
+  const [view, setView] = useState<DemoView>("dashboard");
 
   return (
     <ThemeProvider
       theme={dark ? industrialDark : industrialLight}
       style={{ height: "100%" }}
     >
-      <Dashboard dark={dark} onToggleTheme={() => setDark((value) => !value)} />
+      <div
+        style={{
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          padding: 12,
+          boxSizing: "border-box",
+        }}
+      >
+        <div style={{ display: "flex", gap: 8, paddingBottom: 8 }}>
+          <button type="button" onClick={() => setView("dashboard")}>
+            통합 대시보드
+          </button>
+          <button type="button" onClick={() => setView("graph")}>
+            지식그래프
+          </button>
+        </div>
+        <div style={{ flex: 1, minHeight: 0 }}>
+          {view === "dashboard" ? (
+            <Dashboard
+              dark={dark}
+              onToggleTheme={() => setDark((value) => !value)}
+            />
+          ) : (
+            <KnowledgeGraphDemo />
+          )}
+        </div>
+      </div>
     </ThemeProvider>
   );
-}
+};
 
 function Dashboard({
   dark,

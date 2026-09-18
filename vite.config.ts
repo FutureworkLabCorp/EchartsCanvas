@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import dts from "vite-plugin-dts";
 
@@ -9,7 +9,7 @@ const isStorybook = process.env["STORYBOOK"] === "true";
 
 // One config serves two roots: `pnpm dev` boots the demo app from demo/index.html,
 // `pnpm build` emits the library bundle from src/index.ts.
-export default defineConfig(({ command }) => ({
+export default defineConfig(({ command, mode }) => ({
   root:
     command === "serve"
       ? resolve(import.meta.dirname, "demo")
@@ -17,6 +17,21 @@ export default defineConfig(({ command }) => ({
   resolve: {
     alias: {
       "@": resolve(import.meta.dirname, "src"),
+    },
+  },
+  server: {
+    proxy: {
+      // Same-origin for the browser, so the demo issues no cross-origin request and the
+      // host needs no CORS grant. The path passes through unrewritten: the MCP host
+      // serves these tools under /mcpapi itself. Auth rides on the demo's headers.
+      // Only the dev server does this; the published library never reaches the network.
+      "/mcpapi": {
+        target:
+          loadEnv(mode, import.meta.dirname, "").VITE_MCP_API_PROXY_TARGET ||
+          "https://ncpapidev.linkbrain.ai.kr",
+        changeOrigin: true,
+        secure: true,
+      },
     },
   },
   plugins: [

@@ -9,3 +9,6 @@ coverage
 .vscode/*
 !.vscode/extensions.json
 *.log
+
+.env
+.env.local
