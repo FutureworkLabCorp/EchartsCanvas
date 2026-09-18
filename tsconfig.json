@@ -32,8 +32,10 @@
     "src",
     "demo",
     ".storybook",
+    "bench",
     "vite.config.ts",
-    "vitest.config.ts"
+    "vitest.config.ts",
+    "vitest.bench.config.ts"
   ],
   "exclude": ["dist", "node_modules", "storybook-static"]
 }

@@ -32,6 +32,7 @@ import {
   koToolboxLabels,
 } from "../src/mock/labels";
 import { KnowledgeGraphDemo } from "./KnowledgeGraphDemo";
+import { BenchPanel } from "./BenchPanel";
 
 const layout = createMockFactoryLayout();
 const anomalyDataset = createMockAnomalyDataset({
@@ -45,7 +46,7 @@ const SERIES: SeriesDescriptor[] = [
   { key: "load", name: "부하", unit: "%" },
 ];
 
-type DemoView = "dashboard" | "graph";
+type DemoView = "dashboard" | "graph" | "bench";
 
 export const App = () => {
   const [dark, setDark] = useState(true);
@@ -72,6 +73,9 @@ export const App = () => {
           <button type="button" onClick={() => setView("graph")}>
             지식그래프
           </button>
+          <button type="button" onClick={() => setView("bench")}>
+            성능 측정
+          </button>
         </div>
         <div style={{ flex: 1, minHeight: 0 }}>
           {view === "dashboard" ? (
@@ -79,8 +83,10 @@ export const App = () => {
               dark={dark}
               onToggleTheme={() => setDark((value) => !value)}
             />
-          ) : (
+          ) : view === "graph" ? (
             <KnowledgeGraphDemo />
+          ) : (
+            <BenchPanel />
           )}
         </div>
       </div>
