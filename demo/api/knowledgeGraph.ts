@@ -7,6 +7,49 @@ import type { GraphData, GraphEdge, GraphNode } from "../../src";
 // Shapes checked against AxFlow's own mapping in
 // packages/core/src/domains/knowledge-graph/lib/mcp.ts.
 
+// The backend labels entities in Korean and with a wider vocabulary than the six types
+// the legend shows, so the adapter folds them down. Copied from the Axflow client's own
+// table (knowledge-graph/model/node-mapping.ts), which marks it provisional until the
+// finalized i18n table lands. Verified against a live pull on 2026-09-18, which carried
+// 16 distinct entity_type values across 439 nodes.
+const KOREAN_ENTITY_TYPE: Record<string, string> = {
+  역할: "WORKER",
+  조직: "WORKER",
+  장비: "EQUIPMENT",
+  절차단계: "PROCESS",
+  조건: "PROCESS",
+  장소: "PROCESS",
+  소모품: "MATERIAL",
+  문서: "DOCUMENT",
+  규칙: "DOCUMENT",
+  주의사항: "DOCUMENT",
+  규격: "DOCUMENT",
+  판정기준: "DOCUMENT",
+  증상: "ISSUE",
+  장애: "ISSUE",
+  인과요인: "ISSUE",
+};
+
+const KNOWN_TYPES = new Set([
+  "ISSUE",
+  "EQUIPMENT",
+  "PROCESS",
+  "MATERIAL",
+  "DOCUMENT",
+  "WORKER",
+]);
+
+// Anything unrecognised becomes PROCESS rather than a seventh legend entry. `장학금`
+// reaches this in the live data today.
+const FALLBACK_TYPE = "PROCESS";
+
+export const coerceNodeType = (input: string): string => {
+  const trimmed = input.trim();
+  if (KNOWN_TYPES.has(trimmed.toUpperCase())) return trimmed.toUpperCase();
+  if (trimmed === "STANDARD") return "DOCUMENT";
+  return KOREAN_ENTITY_TYPE[trimmed] ?? FALLBACK_TYPE;
+};
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
 
@@ -49,10 +92,11 @@ const mapNode = (raw: Record<string, unknown>): GraphNode | null => {
   if (!id) return null;
   const label =
     readString(props, "entity_name", "entityName", "label", "name") || id;
-  // Upper-cased so the typeStyles lookup does not depend on the casing the host used.
-  const type =
-    readString(props, "entity_type", "entityType").toUpperCase() || "DOCUMENT";
-  return { id, label, type };
+  return {
+    id,
+    label,
+    type: coerceNodeType(readString(props, "entity_type", "entityType")),
+  };
 };
 
 const mapEdge = (raw: Record<string, unknown>): GraphEdge | null => {
@@ -60,6 +104,8 @@ const mapEdge = (raw: Record<string, unknown>): GraphEdge | null => {
   const target = normalizeEntityId(raw.target);
   if (!source || !target) return null;
   const props = propsOf(raw);
+  // The live payload carries `confidence` (0.7 to 0.99 in the pull checked on
+  // 2026-09-18) and no `weight`; both are read because AxFlow's client reads both.
   const weight = readNumber(props.weight) ?? readNumber(props.confidence);
   return {
     id: typeof raw.id === "string" && raw.id ? raw.id : `${source}->${target}`,

@@ -25,7 +25,11 @@ export interface McpProxyEnv {
   // Skips the password step. Read from a signed-in browser session; it expires, and the
   // middleware reports that rather than silently falling back.
   accessToken: string;
+  // All optional. The MCP host answered a live request on the bearer alone, so these only
+  // narrow the read when the account's token spans more than one workspace.
   orgUuid: string;
+  teamUuid: string;
+  workspaceUuid: string;
 }
 
 interface Session {
@@ -33,6 +37,47 @@ interface Session {
   orgUuid: string;
   contextToken: string;
 }
+
+// The organization bootstrap is best-effort: an account can have no organization at all
+// (checked on 2026-09-18, where /organizations/ answered `[]` while the graph still
+// loaded), so a failure here must not sink the request.
+const tryOrgContext = async (
+  env: McpProxyEnv,
+  accessToken: string,
+): Promise<{ orgUuid: string; contextToken: string }> => {
+  const none = { orgUuid: "", contextToken: "" };
+  const auth = { Authorization: `Bearer ${accessToken}` };
+  try {
+    let orgUuid = env.orgUuid;
+    if (!orgUuid) {
+      const orgResponse = await fetch(
+        `${env.apiTarget}/api/v1/organizations/`,
+        {
+          headers: auth,
+        },
+      );
+      if (!orgResponse.ok) return none;
+      // `{ data: [{ uuid, name }] }`, per the schema the Axflow client parses this with.
+      const list = asRecord(await orgResponse.json()).data;
+      const first = Array.isArray(list) ? asRecord(list[0]) : {};
+      orgUuid = typeof first.uuid === "string" ? first.uuid : "";
+      if (!orgUuid) return none;
+    }
+
+    const contextResponse = await fetch(
+      `${env.apiTarget}/api/v1/organizations/context-token?organization_uuid=${encodeURIComponent(orgUuid)}`,
+      { method: "POST", headers: auth },
+    );
+    if (!contextResponse.ok) return { orgUuid, contextToken: "" };
+    const payload = asRecord(await contextResponse.json()).data;
+    return {
+      orgUuid,
+      contextToken: typeof payload === "string" ? payload : "",
+    };
+  } catch {
+    return none;
+  }
+};
 
 const readBody = (req: IncomingMessage): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -83,36 +128,7 @@ const acquireAccessToken = async (env: McpProxyEnv): Promise<string> => {
 
 const login = async (env: McpProxyEnv): Promise<Session> => {
   const accessToken = await acquireAccessToken(env);
-
-  const auth = { Authorization: `Bearer ${accessToken}` };
-
-  let orgUuid = env.orgUuid;
-  if (!orgUuid) {
-    const orgResponse = await fetch(`${env.apiTarget}/api/v1/organizations/`, {
-      headers: auth,
-    });
-    if (!orgResponse.ok) {
-      throw new Error(`organizations failed: ${orgResponse.status}`);
-    }
-    const list = asRecord(await orgResponse.json()).data;
-    // `{ data: [{ uuid, name }] }`, per the schema the Axflow client parses this with.
-    // The first organization is the demo's, unless MCP_DEMO_ORG_UUID names another.
-    const first = Array.isArray(list) ? asRecord(list[0]) : {};
-    orgUuid = typeof first.uuid === "string" ? first.uuid : "";
-    if (!orgUuid) throw new Error("no organization available for this account");
-  }
-
-  const contextResponse = await fetch(
-    `${env.apiTarget}/api/v1/organizations/context-token?organization_uuid=${encodeURIComponent(orgUuid)}`,
-    { method: "POST", headers: auth },
-  );
-  if (!contextResponse.ok) {
-    throw new Error(`context-token failed: ${contextResponse.status}`);
-  }
-  const contextPayload = asRecord(await contextResponse.json()).data;
-  const contextToken = typeof contextPayload === "string" ? contextPayload : "";
-  if (!contextToken) throw new Error("context-token returned no token");
-
+  const { orgUuid, contextToken } = await tryOrgContext(env, accessToken);
   return { accessToken, orgUuid, contextToken };
 };
 
@@ -138,11 +154,17 @@ export const createMcpMiddleware = (env: McpProxyEnv) => {
   ): Promise<Response> =>
     fetch(`${env.mcpTarget}${path}`, {
       method: "POST",
+      // Only the headers that have a value: the host reads an empty X-Org-ID as a
+      // request to scope to nothing rather than as an absent one.
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${current.accessToken}`,
-        "X-Org-ID": current.orgUuid,
-        "X-Context-Token": current.contextToken,
+        ...(current.orgUuid ? { "X-Org-ID": current.orgUuid } : {}),
+        ...(current.contextToken
+          ? { "X-Context-Token": current.contextToken }
+          : {}),
+        ...(env.teamUuid ? { "X-Team-Id": env.teamUuid } : {}),
+        ...(env.workspaceUuid ? { "X-Workspace-Id": env.workspaceUuid } : {}),
       },
       body,
     });

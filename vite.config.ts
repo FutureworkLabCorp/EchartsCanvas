@@ -43,6 +43,8 @@ export default defineConfig(({ command, mode }) => ({
             email: env.MCP_DEMO_EMAIL ?? "",
             password: env.MCP_DEMO_PASSWORD ?? "",
             orgUuid: env.MCP_DEMO_ORG_UUID ?? "",
+            teamUuid: env.MCP_DEMO_TEAM_UUID ?? "",
+            workspaceUuid: env.MCP_DEMO_WORKSPACE_UUID ?? "",
           }),
         );
       },
