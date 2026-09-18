@@ -56,8 +56,11 @@ export interface RelationGraphCanvasProps {
 const FALLBACK_STYLE: GraphTypeStyle = { label: "", color: "#94a3b8" };
 const EDGE_CURVATURE = 0.12;
 
-// Runs the layout to rest before the first paint. Watching several hundred cards fly
-// apart is not informative, and the settle is well under a frame budget at this size.
+// Runs the layout to rest before the first paint, synchronously. Measured on 2026-09-18:
+// 156ms at 100 nodes, 848ms at 439, 2.1s at 1000, 8s at 4000 — all of it blocking the
+// main thread, so the page is frozen for that whole time. The alternative, ticking the
+// simulation inside the render loop, trades that freeze for a visible scramble; neither
+// is right yet and the choice is still open.
 const layout = (
   data: GraphData,
   typeStyles: Record<string, GraphTypeStyle>,
